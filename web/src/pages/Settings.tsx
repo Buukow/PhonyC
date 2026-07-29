@@ -59,14 +59,15 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <PageHeader title="设置" subtitle="系统参数、自动测活、日志管理与管理员安全" />
+      <PageHeader title="设置" subtitle="自动重试、自动测活、日志管理与管理员安全" />
       {msg && <div className="mb-4 text-sm text-primary">{msg}</div>}
       {err && <div className="mb-4 text-sm text-warn">{err}</div>}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <Card className="p-6">
           <div className="text-lg font-semibold mb-4">自动测活</div>
           <p className="text-xs text-gray-400 mb-4">
-            仅测试「手动启用」的渠道（含测活临时禁用，用于恢复）。自动测活命中禁用状态码时临时禁用；下次成功则恢复。渠道列表「测活」按钮只出报告、不改禁用状态。优先级：0 最低，数字越大越优先。
+            仅测试「手动启用」的渠道（含测活临时禁用，用于恢复）。命中临时禁用状态码时临时禁用；下次测活成功则恢复。
+            <strong>正式转发</strong>若收到相同状态码，也会立即将渠道设为临时禁用。渠道列表「测活」按钮只出报告、不改禁用状态。
           </p>
           <form className="space-y-4" onSubmit={saveSettings}>
             <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -106,7 +107,7 @@ export default function SettingsPage() {
               />
             </div>
             <div className="text-xs text-gray-400 bg-canvas rounded-xl px-3 py-2">
-              测活模型：固定使用<strong>每个渠道模型表中第一个启用映射</strong>（不再使用全局/渠道 test_model 覆盖）。
+              测活模型：固定使用<strong>每个渠道模型表中第一个启用映射</strong>。
             </div>
             <div>
               <Label>临时禁用状态码（逗号分隔）</Label>
@@ -114,6 +115,7 @@ export default function SettingsPage() {
                 value={settings.auto_test_disable_status_codes || '401,403,404,503'}
                 onChange={(e) => setSettings({ ...settings, auto_test_disable_status_codes: e.target.value })}
               />
+              <p className="text-[11px] text-gray-400 mt-1">同时作用于自动测活与正式请求转发。</p>
             </div>
             <div className="flex gap-2">
               <Button type="submit">保存设置</Button>
@@ -132,6 +134,44 @@ export default function SettingsPage() {
         </Card>
 
         <div className="space-y-6">
+          <Card className="p-6">
+            <div className="text-lg font-semibold mb-4">自动重试</div>
+            <p className="text-xs text-gray-400 mb-4">
+              正式转发上游返回指定状态码时，可自动换其它可用渠道重试（优先排除已失败渠道）。
+              若状态码同时属于「临时禁用状态码」，会先将该渠道临时禁用再重试。
+            </p>
+            <form className="space-y-4" onSubmit={saveSettings}>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={(settings.auto_retry_enabled || 'false') === 'true'}
+                  onChange={(e) => setBool('auto_retry_enabled', e.target.checked)}
+                />
+                开启自动重试
+                {(settings.auto_retry_enabled || 'false') === 'true' ? <Badge>已开启</Badge> : <Badge tone="muted">关闭</Badge>}
+              </label>
+              <div>
+                <Label>重试上限（次）</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={20}
+                  value={settings.auto_retry_max || '2'}
+                  onChange={(e) => setSettings({ ...settings, auto_retry_max: e.target.value })}
+                />
+                <p className="text-[11px] text-gray-400 mt-1">在首次请求失败后，最多再重试的次数（默认 2）。</p>
+              </div>
+              <div>
+                <Label>触发重试的状态码（逗号分隔）</Label>
+                <Input
+                  value={settings.auto_retry_status_codes || '429,500,502,503,504'}
+                  onChange={(e) => setSettings({ ...settings, auto_retry_status_codes: e.target.value })}
+                />
+              </div>
+              <Button type="submit">保存重试设置</Button>
+            </form>
+          </Card>
+
           <Card className="p-6">
             <div className="text-lg font-semibold mb-4">日志管理</div>
             <p className="text-xs text-gray-400 mb-4">

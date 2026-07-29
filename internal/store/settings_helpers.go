@@ -80,4 +80,7 @@ const (
 	SettingHeaderCaptureKey      = "header_capture_key"
 	SettingHeaderCaptureArmed    = "header_capture_armed" // "1" waiting for first request
 	SettingHeaderCapturePayload  = "header_capture_payload"
+	SettingAutoRetryEnabled      = "auto_retry_enabled"
+	SettingAutoRetryMax          = "auto_retry_max"
+	SettingAutoRetryStatusCodes  = "auto_retry_status_codes"
 )

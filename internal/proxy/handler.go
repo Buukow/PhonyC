@@ -148,93 +148,168 @@ func (h *Handler) Handle(c *gin.Context) {
 	}
 
 	reqProtocol := protocol.ProtocolForPath(c.Request.Method, path)
-	cand, ok := SelectChannel(snap, reqProtocol, clientModel)
-	if !ok {
-		writeGatewayError(c, gwError{404, "model_not_found", fmt.Sprintf("no enabled channel for model %q protocol %s", clientModel, reqProtocol)})
-		h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, "", nil, c.Request.Method, path, 404, 0, time.Since(start), "model_not_found", userKey.ImpersonationMode, usage.Tokens{})
-		return
-	}
 
-	upstreamModel := clientModel
-	if cand.Model.RewriteModel {
-		upstreamModel = cand.Model.UpstreamModel
-		bodyBytes, err = body.RewriteTopModel(bodyBytes, cand.Model.UpstreamModel)
-		if err != nil {
-			writeGatewayError(c, gwError{500, "internal_error", "model rewrite failed"})
+	// Keep original body for multi-channel retry (each candidate may rewrite differently).
+	origBody := append([]byte(nil), bodyBytes...)
+
+	retryEnabled := h.Store.GetSettingBool(store.SettingAutoRetryEnabled, false)
+	maxRetries := h.Store.GetSettingInt(store.SettingAutoRetryMax, 2)
+	if maxRetries < 0 {
+		maxRetries = 0
+	}
+	if maxRetries > 20 {
+		maxRetries = 20
+	}
+	retryCodes := store.ParseStatusCodeList(
+		h.Store.GetSettingOr(store.SettingAutoRetryStatusCodes, "429,500,502,503,504"),
+		[]int{429, 500, 502, 503, 504},
+	)
+	disableCodes := store.ParseStatusCodeList(
+		h.Store.GetSettingOr(store.SettingAutoTestDisableCodes, "401,403,404,503"),
+		[]int{401, 403, 404, 503},
+	)
+
+	exclude := map[int64]struct{}{}
+	retriesLeft := 0
+	if retryEnabled {
+		retriesLeft = maxRetries
+	}
+	hadAttempt := false
+
+	for {
+		cand, ok := SelectChannelExcluding(snap, reqProtocol, clientModel, exclude)
+		if !ok {
+			msg := fmt.Sprintf("no enabled channel for model %q protocol %s", clientModel, reqProtocol)
+			if hadAttempt {
+				msg = fmt.Sprintf("all candidate channels failed for model %q protocol %s", clientModel, reqProtocol)
+			}
+			writeGatewayError(c, gwError{404, "model_not_found", msg})
+			h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, "", nil, c.Request.Method, path, 404, 0, time.Since(start), msg, userKey.ImpersonationMode, usage.Tokens{})
+			if hadAttempt {
+				h.stats(userKey.ID, true)
+			}
 			return
 		}
-	} else {
-		upstreamModel = cand.Model.UpstreamModel
-		if upstreamModel == "" {
-			upstreamModel = clientModel
-		}
-		// when rewrite off, body stays as client; upstream_model recorded for meta
-		if !cand.Model.RewriteModel {
-			upstreamModel = clientModel
-		}
-	}
-	// Fix upstream model recording:
-	// - rewrite on: body becomes UpstreamModel, meta upstream = UpstreamModel
-	// - rewrite off: body stays client, meta upstream_model field still stores mapping target for observability? Spec says client_model/upstream_model in meta.
-	// Use mapping's upstream_model always for meta.upstream_model, and client for client_model.
-	metaUpstream := cand.Model.UpstreamModel
-	if metaUpstream == "" {
-		metaUpstream = clientModel
-	}
-	if cand.Model.RewriteModel {
-		upstreamModel = cand.Model.UpstreamModel
-	} else {
-		upstreamModel = clientModel
-	}
-	_ = upstreamModel
+		hadAttempt = true
 
-	// build upstream request
-	base := strings.TrimRight(cand.Channel.BaseURL, "/")
-	u, err := url.Parse(base + path)
-	if err != nil {
-		writeGatewayError(c, gwError{500, "internal_error", "invalid upstream url"})
+		bodyForUp := origBody
+		metaUpstream := cand.Model.UpstreamModel
+		if metaUpstream == "" {
+			metaUpstream = clientModel
+		}
+		if cand.Model.RewriteModel && cand.Model.UpstreamModel != "" {
+			rewritten, rerr := body.RewriteTopModel(origBody, cand.Model.UpstreamModel)
+			if rerr != nil {
+				exclude[cand.Channel.ID] = struct{}{}
+				if retryEnabled && retriesLeft > 0 {
+					retriesLeft--
+					continue
+				}
+				writeGatewayError(c, gwError{500, "internal_error", "model rewrite failed"})
+				chID := cand.Channel.ID
+				h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, metaUpstream, &chID, c.Request.Method, path, 500, 0, time.Since(start), "model rewrite failed", userKey.ImpersonationMode, usage.Tokens{})
+				h.stats(userKey.ID, true)
+				return
+			}
+			bodyForUp = rewritten
+		}
+
+		base := strings.TrimRight(cand.Channel.BaseURL, "/")
+		u, err := url.Parse(base + path)
+		if err != nil {
+			exclude[cand.Channel.ID] = struct{}{}
+			if retryEnabled && retriesLeft > 0 {
+				retriesLeft--
+				continue
+			}
+			writeGatewayError(c, gwError{500, "internal_error", "invalid upstream url"})
+			return
+		}
+		if c.Request.URL.RawQuery != "" {
+			u.RawQuery = c.Request.URL.RawQuery
+		}
+
+		timeout := time.Duration(cand.Channel.TimeoutMS) * time.Millisecond
+		if timeout <= 0 {
+			timeout = 10 * time.Minute
+		}
+		ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
+
+		upReq, err := http.NewRequestWithContext(ctx, c.Request.Method, u.String(), bytes.NewReader(bodyForUp))
+		if err != nil {
+			cancel()
+			exclude[cand.Channel.ID] = struct{}{}
+			if retryEnabled && retriesLeft > 0 {
+				retriesLeft--
+				continue
+			}
+			writeGatewayError(c, gwError{500, "internal_error", "build upstream request failed"})
+			return
+		}
+		upHeaders := BuildUpstreamHeaders(c.Request.Header, cand.Channel, *userKey, snap, int64(len(bodyForUp)))
+		upReq.Header = upHeaders
+		upReq.Host = u.Host
+		upReq.ContentLength = int64(len(bodyForUp))
+
+		ttfbStart := time.Now()
+		resp, err := h.Client.Do(upReq)
+		ttfb := time.Since(ttfbStart)
+		if err != nil {
+			cancel()
+			msg := "upstream request failed"
+			if errors.Is(err, context.Canceled) {
+				msg = "client canceled"
+				writeGatewayError(c, gwError{502, "upstream_error", msg})
+				chID := cand.Channel.ID
+				h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, metaUpstream, &chID, c.Request.Method, path, 502, ttfb.Milliseconds(), time.Since(start), msg, userKey.ImpersonationMode, usage.Tokens{})
+				h.stats(userKey.ID, true)
+				return
+			}
+			if errors.Is(err, context.DeadlineExceeded) {
+				msg = "upstream timeout"
+			}
+			exclude[cand.Channel.ID] = struct{}{}
+			chID := cand.Channel.ID
+			if retryEnabled && retriesLeft > 0 && store.StatusCodeListContains(retryCodes, 502) {
+				h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, metaUpstream, &chID, c.Request.Method, path, 502, ttfb.Milliseconds(), time.Since(start), msg+"; retrying", userKey.ImpersonationMode, usage.Tokens{})
+				retriesLeft--
+				continue
+			}
+			writeGatewayError(c, gwError{502, "upstream_error", msg})
+			h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, metaUpstream, &chID, c.Request.Method, path, 502, ttfb.Milliseconds(), time.Since(start), msg, userKey.ImpersonationMode, usage.Tokens{})
+			h.stats(userKey.ID, true)
+			return
+		}
+
+		// Live traffic hits temp-disable codes => same as auto healthcheck ban.
+		if store.StatusCodeListContains(disableCodes, resp.StatusCode) {
+			_ = h.Store.SetChannelTempDisabled(cand.Channel.ID, true)
+			_ = h.Snap.Reload()
+			if s2 := h.Snap.Current(); s2 != nil {
+				snap = s2
+			}
+		}
+
+		if retryEnabled && retriesLeft > 0 && store.StatusCodeListContains(retryCodes, resp.StatusCode) {
+			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 2<<20))
+			_ = resp.Body.Close()
+			cancel()
+			exclude[cand.Channel.ID] = struct{}{}
+			chID := cand.Channel.ID
+			h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, metaUpstream, &chID, c.Request.Method, path, resp.StatusCode, ttfb.Milliseconds(), time.Since(start), fmt.Sprintf("upstream status %d; retrying", resp.StatusCode), userKey.ImpersonationMode, usage.Tokens{})
+			retriesLeft--
+			continue
+		}
+
+		h.finishProxyResponse(c, reqID, userKey, clientModel, metaUpstream, path, start, cand, resp, ttfb, cancel)
 		return
 	}
-	if c.Request.URL.RawQuery != "" {
-		u.RawQuery = c.Request.URL.RawQuery
-	}
+}
 
-	timeout := time.Duration(cand.Channel.TimeoutMS) * time.Millisecond
-	if timeout <= 0 {
-		timeout = 10 * time.Minute
-	}
-	ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
+func (h *Handler) finishProxyResponse(c *gin.Context, reqID string, userKey *store.UserKey, clientModel, metaUpstream, path string, start time.Time, cand snapshot.ModelCandidate, resp *http.Response, ttfb time.Duration, cancel context.CancelFunc) {
 	defer cancel()
-
-	upReq, err := http.NewRequestWithContext(ctx, c.Request.Method, u.String(), bytes.NewReader(bodyBytes))
-	if err != nil {
-		writeGatewayError(c, gwError{500, "internal_error", "build upstream request failed"})
-		return
-	}
-	upHeaders := BuildUpstreamHeaders(c.Request.Header, cand.Channel, *userKey, snap, int64(len(bodyBytes)))
-	upReq.Header = upHeaders
-	upReq.Host = u.Host
-	upReq.ContentLength = int64(len(bodyBytes))
-
-	ttfbStart := time.Now()
-	resp, err := h.Client.Do(upReq)
-	if err != nil {
-		msg := "upstream request failed"
-		if errors.Is(err, context.Canceled) {
-			msg = "client canceled"
-		} else if errors.Is(err, context.DeadlineExceeded) {
-			msg = "upstream timeout"
-		}
-		writeGatewayError(c, gwError{502, "upstream_error", msg})
-		chID := cand.Channel.ID
-		h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, metaUpstream, &chID, c.Request.Method, path, 502, 0, time.Since(start), msg, userKey.ImpersonationMode, usage.Tokens{})
-		h.stats(userKey.ID, true)
-		return
-	}
 	defer resp.Body.Close()
 
-	ttfb := time.Since(ttfbStart)
-	// copy response headers
 	for k, vv := range resp.Header {
 		if isHop(k) {
 			continue
@@ -246,7 +321,6 @@ func (h *Handler) Handle(c *gin.Context) {
 	c.Writer.Header().Set("X-Request-Id", reqID)
 	c.Writer.WriteHeader(resp.StatusCode)
 
-	// stream copy with flush for SSE; tee-sniff usage from response
 	ct := resp.Header.Get("Content-Type")
 	isSSE := strings.Contains(strings.ToLower(ct), "text/event-stream") || strings.Contains(strings.ToLower(ct), "event-stream")
 	sniffer := usage.NewSniffer(isSSE)
@@ -274,12 +348,11 @@ func (h *Handler) Handle(c *gin.Context) {
 	tok := sniffer.Result()
 	if resp.StatusCode >= 400 {
 		errSummary = fmt.Sprintf("upstream status %d", resp.StatusCode)
-		tok = usage.Tokens{} // failed requests always 0
+		tok = usage.Tokens{}
 	}
 	h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, metaUpstream, &chID, c.Request.Method, path, resp.StatusCode, ttfb.Milliseconds(), time.Since(start), errSummary, userKey.ImpersonationMode, tok)
 	h.stats(userKey.ID, resp.StatusCode >= 400)
 }
-
 
 func (h *Handler) handleCaptureOnly(c *gin.Context, reqID, path string) {
 	model := ""

@@ -14,6 +14,14 @@ type RouteResult struct {
 // SelectChannel picks among enabled candidates matching protocol+clientModel.
 // Highest priority tier wins; within tier, random.
 func SelectChannel(snap *snapshot.Snapshot, protocol, clientModel string) (snapshot.ModelCandidate, bool) {
+	return SelectChannelExcluding(snap, protocol, clientModel, nil)
+}
+
+// SelectChannelExcluding is SelectChannel but skips channel IDs in exclude.
+func SelectChannelExcluding(snap *snapshot.Snapshot, protocol, clientModel string, exclude map[int64]struct{}) (snapshot.ModelCandidate, bool) {
+	if snap == nil {
+		return snapshot.ModelCandidate{}, false
+	}
 	cands := snap.ModelsByClient[clientModel]
 	var matched []snapshot.ModelCandidate
 	for _, c := range cands {
@@ -22,6 +30,11 @@ func SelectChannel(snap *snapshot.Snapshot, protocol, clientModel string) (snaps
 		}
 		if !c.Channel.Routable() || !c.Model.Enabled {
 			continue
+		}
+		if exclude != nil {
+			if _, skip := exclude[c.Channel.ID]; skip {
+				continue
+			}
 		}
 		matched = append(matched, c)
 	}

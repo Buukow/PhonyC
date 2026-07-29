@@ -215,3 +215,64 @@ func TestCaptureAnyModelSuccessShape(t *testing.T) {
 		t.Fatalf("no choices: %v", resp)
 	}
 }
+
+func TestAutoRetryAndLiveTempDisable(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var hits int
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		if hits == 1 {
+			w.WriteHeader(503)
+			_, _ = w.Write([]byte(`{"error":"busy"}`))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"ok":true,"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`))
+	}))
+	defer up.Close()
+
+	dir := t.TempDir()
+	st, err := store.Open(filepath.Join(dir, "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	_ = seed.EnsureBuiltinPresets(st)
+	en := true
+	pri1, pri2 := 10, 5
+	ch1, _ := st.CreateChannel(store.ChannelInput{Name: "c1", Enabled: &en, Protocol: "openai", BaseURL: up.URL, APIKey: "k1", Priority: &pri1})
+	ch2, _ := st.CreateChannel(store.ChannelInput{Name: "c2", Enabled: &en, Protocol: "openai", BaseURL: up.URL, APIKey: "k2", Priority: &pri2})
+	rw := false
+	_, _ = st.CreateChannelModel(ch1.ID, store.ChannelModelInput{ClientModel: "m1", UpstreamModel: "m1", RewriteModel: &rw, Enabled: &en})
+	_, _ = st.CreateChannelModel(ch2.ID, store.ChannelModelInput{ClientModel: "m1", UpstreamModel: "m1", RewriteModel: &rw, Enabled: &en})
+	_, _ = st.CreateUserKey(store.UserKeyInput{Name: "k", Key: "sk-retry", Enabled: &en, ImpersonationMode: "passthrough"})
+	_ = st.SetSetting(store.SettingAutoRetryEnabled, "true")
+	_ = st.SetSetting(store.SettingAutoRetryMax, "2")
+	_ = st.SetSetting(store.SettingAutoRetryStatusCodes, "503")
+	_ = st.SetSetting(store.SettingAutoTestDisableCodes, "503")
+
+	snap := snapshot.NewManager(st)
+	_ = snap.Reload()
+	h := NewHandler(snap, st, nil, 1<<20)
+	r := gin.New()
+	r.Any("/v1/*path", h.Handle)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/v1/chat/completions", strings.NewReader(`{"model":"m1","messages":[{"role":"user","content":"hi"}]}`))
+	req.Header.Set("Authorization", "Bearer sk-retry")
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+	if w.Code != 200 {
+		t.Fatalf("code=%d body=%s hits=%d", w.Code, w.Body.String(), hits)
+	}
+	if hits < 2 {
+		t.Fatalf("expected retry hits>=2 got %d", hits)
+	}
+	c1, _ := st.GetChannel(ch1.ID)
+	if !c1.TempDisabled {
+		// first channel was higher priority and returned 503, should be temp disabled
+		// Depending on random within same priority — priorities differ so ch1 first.
+		t.Fatalf("channel1 should be temp disabled, got %+v", c1)
+	}
+}
