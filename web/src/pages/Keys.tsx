@@ -164,7 +164,9 @@ export default function Keys() {
               </Select>
             </div>
             <div className="md:col-span-2"><Label>备注</Label><Input value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} /></div>
-            <div className="md:col-span-2"><Label>自定义 Header JSON</Label><Textarea value={form.custom_headers_json} onChange={(e) => setForm({ ...form, custom_headers_json: e.target.value })} disabled={form.impersonation_mode !== 'custom'} /></div>
+            {form.impersonation_mode === 'custom' && (
+              <div className="md:col-span-2"><Label>自定义 Header JSON</Label><Textarea value={form.custom_headers_json} onChange={(e) => setForm({ ...form, custom_headers_json: e.target.value })} /></div>
+            )}
             <div className="md:col-span-2 flex gap-2">
               <Button type="submit">保存</Button>
               <Button type="button" variant="secondary" onClick={cancelForm}>取消</Button>
