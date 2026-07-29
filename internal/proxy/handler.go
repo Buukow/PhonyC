@@ -283,27 +283,202 @@ func (h *Handler) Handle(c *gin.Context) {
 
 func (h *Handler) handleCaptureOnly(c *gin.Context, reqID, path string) {
 	model := ""
-	// optional peek model from body for non-GET
+	var bodyBytes []byte
+	// optional peek model from body for non-GET; never reject on model name
 	if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead {
-		bodyBytes, err := h.readBody(c)
-		if err == nil && len(bodyBytes) > 0 {
+		b, err := h.readBody(c)
+		if err == nil && len(b) > 0 {
+			bodyBytes = b
 			if m, _, _, perr := body.PeekTopModel(bodyBytes); perr == nil {
 				model = m
 			}
 		}
 	}
+	if model == "" {
+		model = "phonyc-capture"
+	}
 	captured := false
 	if h.Capture != nil {
 		captured = h.Capture.TryCapture(c.Request, model)
 	}
+	msg := "【PhonyC 请求捕获】捕获成功：已记录客户端请求头，未转发上游。可在管理台「请求捕获」查看并一键保存为预设。"
+	if !captured {
+		msg = "【PhonyC 请求捕获】当前未布防或未捕获到新请求（可能已捕获过）。请在管理台重新布防后再试。请求仍返回成功，未转发上游。"
+	}
 	c.Header("X-Request-Id", reqID)
-	c.JSON(200, gin.H{
-		"captured": captured,
-		"message":  "request headers recorded; not proxied",
-		"path":     path,
-		"model":    model,
-	})
+	writeCaptureClientSuccess(c, path, model, msg, bodyBytes, captured)
 	// no user key stats for capture
+}
+
+func requestWantsStream(bodyBytes []byte, h http.Header) bool {
+	if strings.Contains(strings.ToLower(h.Get("Accept")), "text/event-stream") {
+		return true
+	}
+	if len(bodyBytes) == 0 {
+		return false
+	}
+	var tmp struct {
+		Stream bool `json:"stream"`
+	}
+	if err := json.Unmarshal(bodyBytes, &tmp); err != nil {
+		return false
+	}
+	return tmp.Stream
+}
+
+// writeCaptureClientSuccess returns a protocol-shaped 200 so clients accept any model name.
+func writeCaptureClientSuccess(c *gin.Context, path, model, msg string, bodyBytes []byte, captured bool) {
+	stream := requestWantsStream(bodyBytes, c.Request.Header)
+	now := time.Now().Unix()
+
+	switch {
+	case path == "/v1/models" || strings.HasPrefix(path, "/v1/models/"):
+		// Keep catalog shape so SDKs that probe models with capture key still succeed.
+		if path == "/v1/models" {
+			c.JSON(200, gin.H{
+				"object": "list",
+				"data": []gin.H{{
+					"id": model, "object": "model", "created": now, "owned_by": "phonyc-capture",
+					"captured": captured, "phonyc_message": msg,
+				}},
+			})
+			return
+		}
+		c.JSON(200, gin.H{"id": model, "object": "model", "created": now, "owned_by": "phonyc-capture", "captured": captured, "phonyc_message": msg})
+		return
+
+	case path == "/v1/messages":
+		if stream {
+			writeCaptureAnthropicStream(c, model, msg, captured)
+			return
+		}
+		c.JSON(200, gin.H{
+			"id": "msg_phonyc_capture", "type": "message", "role": "assistant", "model": model,
+			"content": []gin.H{{"type": "text", "text": msg}},
+			"stop_reason": "end_turn", "stop_sequence": nil,
+			"usage": gin.H{"input_tokens": 0, "output_tokens": 0},
+			"captured": captured,
+		})
+		return
+
+	case path == "/v1/responses" || strings.HasPrefix(path, "/v1/responses"):
+		if stream {
+			writeCaptureResponsesStream(c, model, msg, captured)
+			return
+		}
+		c.JSON(200, gin.H{
+			"id": "resp_phonyc_capture", "object": "response", "created_at": now, "status": "completed",
+			"model": model, "output_text": msg,
+			"output": []gin.H{{
+				"type": "message", "id": "msg_phonyc_capture", "role": "assistant",
+				"content": []gin.H{{"type": "output_text", "text": msg}},
+			}},
+			"usage": gin.H{"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+			"captured": captured,
+		})
+		return
+
+	default:
+		// OpenAI chat/completions and other openai-shaped endpoints
+		if stream {
+			writeCaptureChatStream(c, model, msg, captured)
+			return
+		}
+		c.JSON(200, gin.H{
+			"id": "chatcmpl-phonyc-capture", "object": "chat.completion", "created": now, "model": model,
+			"choices": []gin.H{{
+				"index": 0,
+				"message": gin.H{"role": "assistant", "content": msg},
+				"finish_reason": "stop",
+			}},
+			"usage": gin.H{"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+			"captured": captured,
+		})
+	}
+}
+
+func writeCaptureChatStream(c *gin.Context, model, msg string, captured bool) {
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Status(200)
+	flusher, _ := c.Writer.(http.Flusher)
+	writeSSE := func(v any) {
+		b, _ := json.Marshal(v)
+		_, _ = c.Writer.Write([]byte("data: "))
+		_, _ = c.Writer.Write(b)
+		_, _ = c.Writer.Write([]byte("\n\n"))
+		if flusher != nil {
+			flusher.Flush()
+		}
+	}
+	writeSSE(gin.H{
+		"id": "chatcmpl-phonyc-capture", "object": "chat.completion.chunk", "created": time.Now().Unix(), "model": model,
+		"choices": []gin.H{{"index": 0, "delta": gin.H{"role": "assistant", "content": msg}, "finish_reason": nil}},
+		"captured": captured,
+	})
+	writeSSE(gin.H{
+		"id": "chatcmpl-phonyc-capture", "object": "chat.completion.chunk", "created": time.Now().Unix(), "model": model,
+		"choices": []gin.H{{"index": 0, "delta": gin.H{}, "finish_reason": "stop"}},
+	})
+	_, _ = c.Writer.Write([]byte("data: [DONE]\n\n"))
+	if flusher != nil {
+		flusher.Flush()
+	}
+}
+
+func writeCaptureAnthropicStream(c *gin.Context, model, msg string, captured bool) {
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Status(200)
+	flusher, _ := c.Writer.(http.Flusher)
+	writeEvent := func(event string, v any) {
+		b, _ := json.Marshal(v)
+		_, _ = fmt.Fprintf(c.Writer, "event: %s\ndata: %s\n\n", event, b)
+		if flusher != nil {
+			flusher.Flush()
+		}
+	}
+	writeEvent("message_start", gin.H{
+		"type": "message_start",
+		"message": gin.H{
+			"id": "msg_phonyc_capture", "type": "message", "role": "assistant", "model": model,
+			"content": []any{}, "stop_reason": nil, "usage": gin.H{"input_tokens": 0, "output_tokens": 0},
+		},
+	})
+	writeEvent("content_block_start", gin.H{"type": "content_block_start", "index": 0, "content_block": gin.H{"type": "text", "text": ""}})
+	writeEvent("content_block_delta", gin.H{"type": "content_block_delta", "index": 0, "delta": gin.H{"type": "text_delta", "text": msg}})
+	writeEvent("content_block_stop", gin.H{"type": "content_block_stop", "index": 0})
+	writeEvent("message_delta", gin.H{"type": "message_delta", "delta": gin.H{"stop_reason": "end_turn"}, "usage": gin.H{"output_tokens": 0}, "captured": captured})
+	writeEvent("message_stop", gin.H{"type": "message_stop"})
+}
+
+func writeCaptureResponsesStream(c *gin.Context, model, msg string, captured bool) {
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Status(200)
+	flusher, _ := c.Writer.(http.Flusher)
+	writeSSE := func(v any) {
+		b, _ := json.Marshal(v)
+		_, _ = c.Writer.Write([]byte("data: "))
+		_, _ = c.Writer.Write(b)
+		_, _ = c.Writer.Write([]byte("\n\n"))
+		if flusher != nil {
+			flusher.Flush()
+		}
+	}
+	writeSSE(gin.H{"type": "response.created", "response": gin.H{"id": "resp_phonyc_capture", "object": "response", "status": "in_progress", "model": model}})
+	writeSSE(gin.H{"type": "response.output_text.delta", "delta": msg})
+	writeSSE(gin.H{
+		"type": "response.completed",
+		"response": gin.H{
+			"id": "resp_phonyc_capture", "object": "response", "status": "completed", "model": model,
+			"output_text": msg, "captured": captured,
+			"output": []gin.H{{"type": "message", "role": "assistant", "content": []gin.H{{"type": "output_text", "text": msg}}}},
+		},
+	})
 }
 
 func userKeyIDPtr(k *store.UserKey) *int64 {

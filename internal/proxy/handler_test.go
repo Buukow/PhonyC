@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/phonyc/phonyc/internal/capture"
 	"github.com/phonyc/phonyc/internal/seed"
 	"github.com/phonyc/phonyc/internal/snapshot"
 	"github.com/phonyc/phonyc/internal/store"
@@ -167,3 +168,50 @@ func TestDisabledKey(t *testing.T) {
 }
 
 var _ = os.TempDir
+
+func TestCaptureAnyModelSuccessShape(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	dir := t.TempDir()
+	st, err := store.Open(filepath.Join(dir, "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	_ = seed.EnsureBuiltinPresets(st)
+	_ = st.SetSetting(store.SettingHeaderCaptureEnabled, "true")
+	_ = st.SetSetting(store.SettingHeaderCaptureArmed, "true")
+	_ = st.SetSetting(store.SettingHeaderCaptureKey, "sk-capture-test")
+	snap := snapshot.NewManager(st)
+	_ = snap.Reload()
+	capMgr := capture.New(st)
+	h := NewHandler(snap, st, capMgr, 1<<20)
+	r := gin.New()
+	r.Any("/v1/*path", h.Handle)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/v1/chat/completions", strings.NewReader(`{"model":"totally-unknown-model-xyz","messages":[{"role":"user","content":"hi"}]}`))
+	req.Header.Set("Authorization", "Bearer sk-capture-test")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "Codex-Test/1.0")
+	r.ServeHTTP(w, req)
+	if w.Code != 200 {
+		t.Fatalf("code=%d body=%s", w.Code, w.Body.String())
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp["object"] != "chat.completion" {
+		t.Fatalf("want chat.completion got %v body=%s", resp["object"], w.Body.String())
+	}
+	if resp["model"] != "totally-unknown-model-xyz" {
+		t.Fatalf("model=%v", resp["model"])
+	}
+	if resp["captured"] != true {
+		t.Fatalf("captured=%v", resp["captured"])
+	}
+	choices, _ := resp["choices"].([]any)
+	if len(choices) == 0 {
+		t.Fatalf("no choices: %v", resp)
+	}
+}
