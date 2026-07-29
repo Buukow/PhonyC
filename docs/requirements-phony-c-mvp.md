@@ -234,6 +234,7 @@ POST /v1/... + Bearer user_key
 | 默认 / rewrite off | 原始字节转发；只读 peek |
 | rewrite on | 只替换顶层 `"model"` 的字符串值；禁止整包 Unmarshal/Marshal |
 | 非 JSON 或无法 peek | 无法选渠 → 网关 400 |
+| 无 body / 非 POST（如部分 GET） | **MVP：凡进入需选渠的代理路径，必须能从 JSON body 顶层读到 model**；否则网关 400。不在 MVP 实现「无 model 的透传转发」或 models 列表聚合 |
 | 超 body 上限 | 网关 413/400 |
 
 **流式假设（MVP）**：常见客户端为整包 JSON 请求 + 可选 SSE 响应。响应不完整缓冲；请求可整包缓冲。
@@ -248,7 +249,7 @@ POST /v1/... + Bearer user_key
 4. 渠道 `extra_headers`（模板渲染）  
 5. 伪装：  
    - **passthrough**：保留客户端业务头，再盖鉴权  
-   - **preset / custom**：以模板为基底，默认覆盖同名键，并按预设移除冲突键  
+   - **preset / custom**：**先剥离** hop-by-hop 与用户鉴权后，对「客户端剩余业务头」采取 **strip-then-apply**：丢弃客户端业务头，仅应用预设/自定义模板（再写协议鉴权与渠道 extra）。需要保留个别客户端头时，在模板中显式声明或改用 passthrough  
 6. 若 rewrite：确保 `Content-Length` 正确  
 7. MVP 建议对上游去掉客户端 `Accept-Encoding` 或强制 identity，降低压缩陷阱  
 
@@ -294,7 +295,7 @@ POST /v1/... + Bearer user_key
 - 默认 `Anthropic-Beta` 长串（与抓包对齐，可在管理台改）
 - `X-Stainless-*` 骨架字段
 
-完整键值以日志与管理台最终配置为准，PRD 不要求与抓包逐字节永久锁定。
+完整键值以仓库根目录抓包日志为 **seed 源**（`relay-user-request.log` 中 Codex/Claude 条目的 `user_headers`），导入后可在管理台编辑；PRD 不要求与抓包永久逐字节锁定。
 
 ---
 
@@ -320,8 +321,9 @@ POST /v1/... + Bearer user_key
 - Key：`/api/keys`、`/api/keys/:id`（明文 key 返回；前端遮罩+显示/复制）
 - 预设：`/api/presets`、`/api/presets/:id`
 - 日志：`GET /api/logs` 分页筛选
-- 仪表盘：`GET /api/dashboard/summary`
-- Key 统计：`GET /api/keys/:id/stats`
+- 仪表盘：`GET /api/dashboard/summary` — 建议字段：`requests_today`, `errors_today`, `requests_7d`, `error_rate_7d`, `top_keys[]`, `top_models[]`, `recent_errors[]`
+- Key 统计：`GET /api/keys/:id/stats?range=7d|30d` — 按日 `requests`/`errors` 序列
+- JWT：HS256；claims 含 `sub`=admin id、`username`；默认 TTL **24h**（可配置）；不实现 refresh token（MVP 重新登录）
 - 设置：`GET/PATCH /api/settings`
 - 健康：`GET /api/health`（可公开）
 
