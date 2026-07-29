@@ -13,9 +13,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/phonyc/phonyc/internal/protocol"
 	"github.com/phonyc/phonyc/internal/snapshot"
 	"github.com/phonyc/phonyc/internal/store"
+	"github.com/phonyc/phonyc/internal/usage"
 )
 
 type Worker struct {
@@ -265,10 +267,11 @@ func (w *Worker) testChannel(ch store.Channel, prompt string, disableCodes []int
 	if err != nil {
 		res.Error = err.Error()
 		_ = w.Store.UpdateChannelTestResult(ch.ID, 0, res.LatencyMs, res.Error, nil)
+		w.recordHealthcheckMeta(ch, path, modelName, 0, res.LatencyMs, res.Error, usage.Tokens{})
 		return res
 	}
 	defer resp.Body.Close()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
+	bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	res.StatusCode = resp.StatusCode
 
 	ok := resp.StatusCode >= 200 && resp.StatusCode < 400
@@ -291,7 +294,39 @@ func (w *Worker) testChannel(ch store.Channel, prompt string, disableCodes []int
 		}
 	}
 	_ = w.Store.UpdateChannelTestResult(ch.ID, res.StatusCode, res.LatencyMs, res.Error, tempPtr)
+	tok := usage.Tokens{}
+	if ok {
+		tok = usage.ParseTopLevelJSON(bodyBytes)
+	}
+	w.recordHealthcheckMeta(ch, path, modelName, res.StatusCode, res.LatencyMs, res.Error, tok)
 	return res
+}
+
+
+func (w *Worker) recordHealthcheckMeta(ch store.Channel, path, model string, status int, latencyMs int64, errSummary string, tok usage.Tokens) {
+	if status >= 400 {
+		tok = usage.Tokens{}
+	}
+	chID := ch.ID
+	m := &store.RequestMeta{
+		RequestID:         "hc-" + uuid.NewString(),
+		ClientModel:       model,
+		UpstreamModel:     model,
+		ChannelID:         &chID,
+		Method:            http.MethodPost,
+		Path:              path,
+		StatusCode:        status,
+		TTFBms:            latencyMs,
+		TotalMs:           latencyMs,
+		ErrorSummary:      errSummary,
+		ImpersonationMode: "healthcheck",
+		PromptTokens:      tok.PromptTokens,
+		CompletionTokens:  tok.CompletionTokens,
+		TotalTokens:       tok.TotalTokens,
+		CachedTokens:      tok.CachedTokens,
+		ReasoningTokens:   tok.ReasoningTokens,
+	}
+	_ = w.Store.InsertRequestMeta(m)
 }
 
 func buildTestBody(proto, model, prompt string) (path string, body []byte, err error) {

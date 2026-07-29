@@ -86,6 +86,31 @@ type RequestMeta struct {
 	TotalMs           int64     `json:"total_ms"`
 	ErrorSummary      string    `json:"error_summary"`
 	ImpersonationMode string    `json:"impersonation_mode"`
+	PromptTokens      int       `json:"prompt_tokens"`
+	CompletionTokens  int       `json:"completion_tokens"`
+	TotalTokens       int       `json:"total_tokens"`
+	CachedTokens      int       `json:"cached_tokens"`
+	ReasoningTokens   int       `json:"reasoning_tokens"`
+}
+
+type UsageSeriesPoint struct {
+	Start            string `json:"start"`
+	End              string `json:"end"`
+	Requests         int64  `json:"requests"`
+	Errors           int64  `json:"errors"`
+	PromptTokens     int64  `json:"prompt_tokens"`
+	CompletionTokens int64  `json:"completion_tokens"`
+	TotalTokens      int64  `json:"total_tokens"`
+	CachedTokens     int64  `json:"cached_tokens"`
+	ReasoningTokens  int64  `json:"reasoning_tokens"`
+}
+
+type ModelStat struct {
+	Name             string `json:"name"`
+	Count            int64  `json:"count"`
+	Tokens           int64  `json:"tokens"`
+	PromptTokens     int64  `json:"prompt_tokens"`
+	CompletionTokens int64  `json:"completion_tokens"`
 }
 
 type KeyStatsDaily struct {

@@ -518,7 +518,8 @@ func (a *API) listLogs(c *gin.Context) {
 }
 
 func (a *API) dashboard(c *gin.Context) {
-	s, err := a.Store.DashboardSummary()
+	period := c.DefaultQuery("period", "7d")
+	s, err := a.Store.DashboardSummary(period)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return

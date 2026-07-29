@@ -21,6 +21,7 @@ import (
 	"github.com/phonyc/phonyc/internal/protocol"
 	"github.com/phonyc/phonyc/internal/snapshot"
 	"github.com/phonyc/phonyc/internal/store"
+	"github.com/phonyc/phonyc/internal/usage"
 )
 
 type Handler struct {
@@ -99,7 +100,7 @@ func (h *Handler) Handle(c *gin.Context) {
 		var ge gwError
 		if errors.As(err, &ge) {
 			writeGatewayError(c, ge)
-			h.logMeta(reqID, nil, "", "", nil, c.Request.Method, c.Request.URL.Path, ge.HTTP, 0, time.Since(start), ge.Message, "")
+			h.logMeta(reqID, nil, "", "", nil, c.Request.Method, c.Request.URL.Path, ge.HTTP, 0, time.Since(start), ge.Message, "", usage.Tokens{})
 			return
 		}
 		writeGatewayError(c, gwError{401, "invalid_api_key", "invalid api key"})
@@ -126,7 +127,7 @@ func (h *Handler) Handle(c *gin.Context) {
 		var ge gwError
 		if errors.As(err, &ge) {
 			writeGatewayError(c, ge)
-			h.logMeta(reqID, userKeyIDPtr(userKey), "", "", nil, c.Request.Method, path, ge.HTTP, 0, time.Since(start), ge.Message, userKey.ImpersonationMode)
+			h.logMeta(reqID, userKeyIDPtr(userKey), "", "", nil, c.Request.Method, path, ge.HTTP, 0, time.Since(start), ge.Message, userKey.ImpersonationMode, usage.Tokens{})
 			return
 		}
 		writeGatewayError(c, gwError{400, "invalid_request_body", "failed to read body"})
@@ -142,7 +143,7 @@ func (h *Handler) Handle(c *gin.Context) {
 			msg = err.Error()
 		}
 		writeGatewayError(c, gwError{400, code, msg})
-		h.logMeta(reqID, userKeyIDPtr(userKey), "", "", nil, c.Request.Method, path, 400, 0, time.Since(start), msg, userKey.ImpersonationMode)
+		h.logMeta(reqID, userKeyIDPtr(userKey), "", "", nil, c.Request.Method, path, 400, 0, time.Since(start), msg, userKey.ImpersonationMode, usage.Tokens{})
 		return
 	}
 
@@ -150,7 +151,7 @@ func (h *Handler) Handle(c *gin.Context) {
 	cand, ok := SelectChannel(snap, reqProtocol, clientModel)
 	if !ok {
 		writeGatewayError(c, gwError{404, "model_not_found", fmt.Sprintf("no enabled channel for model %q protocol %s", clientModel, reqProtocol)})
-		h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, "", nil, c.Request.Method, path, 404, 0, time.Since(start), "model_not_found", userKey.ImpersonationMode)
+		h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, "", nil, c.Request.Method, path, 404, 0, time.Since(start), "model_not_found", userKey.ImpersonationMode, usage.Tokens{})
 		return
 	}
 
@@ -226,7 +227,7 @@ func (h *Handler) Handle(c *gin.Context) {
 		}
 		writeGatewayError(c, gwError{502, "upstream_error", msg})
 		chID := cand.Channel.ID
-		h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, metaUpstream, &chID, c.Request.Method, path, 502, 0, time.Since(start), msg, userKey.ImpersonationMode)
+		h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, metaUpstream, &chID, c.Request.Method, path, 502, 0, time.Since(start), msg, userKey.ImpersonationMode, usage.Tokens{})
 		h.stats(userKey.ID, true)
 		return
 	}
@@ -245,13 +246,18 @@ func (h *Handler) Handle(c *gin.Context) {
 	c.Writer.Header().Set("X-Request-Id", reqID)
 	c.Writer.WriteHeader(resp.StatusCode)
 
-	// stream copy with flush for SSE
+	// stream copy with flush for SSE; tee-sniff usage from response
+	ct := resp.Header.Get("Content-Type")
+	isSSE := strings.Contains(strings.ToLower(ct), "text/event-stream") || strings.Contains(strings.ToLower(ct), "event-stream")
+	sniffer := usage.NewSniffer(isSSE)
 	buf := make([]byte, 32*1024)
 	flusher, canFlush := c.Writer.(http.Flusher)
 	for {
 		n, rerr := resp.Body.Read(buf)
 		if n > 0 {
-			if _, werr := c.Writer.Write(buf[:n]); werr != nil {
+			chunk := buf[:n]
+			_, _ = sniffer.Write(chunk)
+			if _, werr := c.Writer.Write(chunk); werr != nil {
 				break
 			}
 			if canFlush {
@@ -265,10 +271,12 @@ func (h *Handler) Handle(c *gin.Context) {
 
 	chID := cand.Channel.ID
 	errSummary := ""
+	tok := sniffer.Result()
 	if resp.StatusCode >= 400 {
 		errSummary = fmt.Sprintf("upstream status %d", resp.StatusCode)
+		tok = usage.Tokens{} // failed requests always 0
 	}
-	h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, metaUpstream, &chID, c.Request.Method, path, resp.StatusCode, ttfb.Milliseconds(), time.Since(start), errSummary, userKey.ImpersonationMode)
+	h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, metaUpstream, &chID, c.Request.Method, path, resp.StatusCode, ttfb.Milliseconds(), time.Since(start), errSummary, userKey.ImpersonationMode, tok)
 	h.stats(userKey.ID, resp.StatusCode >= 400)
 }
 
@@ -400,7 +408,7 @@ func (h *Handler) handleModels(c *gin.Context, snap *snapshot.Snapshot, userKey 
 			}
 			c.JSON(200, gin.H{"object": "list", "data": data})
 		}
-		h.logMeta(reqID, userKeyIDPtr(userKey), "", "", nil, c.Request.Method, path, 200, 0, time.Since(start), "", userKey.ImpersonationMode)
+		h.logMeta(reqID, userKeyIDPtr(userKey), "", "", nil, c.Request.Method, path, 200, 0, time.Since(start), "", userKey.ImpersonationMode, usage.Tokens{})
 		h.stats(userKey.ID, false)
 		return
 	}
@@ -416,7 +424,7 @@ func (h *Handler) handleModels(c *gin.Context, snap *snapshot.Snapshot, userKey 
 	}
 	if !found {
 		writeGatewayError(c, gwError{404, "model_not_found", "model not found"})
-		h.logMeta(reqID, userKeyIDPtr(userKey), id, "", nil, c.Request.Method, path, 404, 0, time.Since(start), "model_not_found", userKey.ImpersonationMode)
+		h.logMeta(reqID, userKeyIDPtr(userKey), id, "", nil, c.Request.Method, path, 404, 0, time.Since(start), "model_not_found", userKey.ImpersonationMode, usage.Tokens{})
 		h.stats(userKey.ID, true)
 		return
 	}
@@ -425,11 +433,14 @@ func (h *Handler) handleModels(c *gin.Context, snap *snapshot.Snapshot, userKey 
 	} else {
 		c.JSON(200, gin.H{"id": id, "object": "model", "created": 1626777600, "owned_by": "phonyc"})
 	}
-	h.logMeta(reqID, userKeyIDPtr(userKey), id, "", nil, c.Request.Method, path, 200, 0, time.Since(start), "", userKey.ImpersonationMode)
+	h.logMeta(reqID, userKeyIDPtr(userKey), id, "", nil, c.Request.Method, path, 200, 0, time.Since(start), "", userKey.ImpersonationMode, usage.Tokens{})
 	h.stats(userKey.ID, false)
 }
 
-func (h *Handler) logMeta(reqID string, keyID *int64, clientModel, upstreamModel string, chID *int64, method, path string, status int, ttfbMs int64, total time.Duration, errSummary, mode string) {
+func (h *Handler) logMeta(reqID string, keyID *int64, clientModel, upstreamModel string, chID *int64, method, path string, status int, ttfbMs int64, total time.Duration, errSummary, mode string, tok usage.Tokens) {
+	if status >= 400 {
+		tok = usage.Tokens{}
+	}
 	m := &store.RequestMeta{
 		RequestID:         reqID,
 		UserKeyID:         keyID,
@@ -443,6 +454,11 @@ func (h *Handler) logMeta(reqID string, keyID *int64, clientModel, upstreamModel
 		TotalMs:           total.Milliseconds(),
 		ErrorSummary:      errSummary,
 		ImpersonationMode: mode,
+		PromptTokens:      tok.PromptTokens,
+		CompletionTokens:  tok.CompletionTokens,
+		TotalTokens:       tok.TotalTokens,
+		CachedTokens:      tok.CachedTokens,
+		ReasoningTokens:   tok.ReasoningTokens,
 	}
 	go func() { _ = h.Store.InsertRequestMeta(m) }()
 }
@@ -451,7 +467,7 @@ func (h *Handler) stats(keyID int64, isErr bool) {
 	if keyID <= 0 {
 		return
 	}
-	day := time.Now().UTC().Format("2006-01-02")
+	day := time.Now().Format("2006-01-02") // system local day boundary
 	go func() { _ = h.Store.IncrKeyStats(keyID, day, isErr) }()
 }
 
