@@ -14,14 +14,32 @@ type Key = {
   custom_headers_json: string
 }
 
+type KeyForm = {
+  name: string
+  key: string
+  remark: string
+  impersonation_mode: string
+  preset_id: string
+  custom_headers_json: string
+}
+
+const emptyForm = (): KeyForm => ({
+  name: '',
+  key: '',
+  remark: '',
+  impersonation_mode: 'passthrough',
+  preset_id: '',
+  custom_headers_json: '{}',
+})
+
 export default function Keys() {
   const [items, setItems] = useState<Key[]>([])
   const [presets, setPresets] = useState<any[]>([])
-  const [show, setShow] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<Key | null>(null)
   const [reveal, setReveal] = useState<Record<number, boolean>>({})
-  const [form, setForm] = useState({
-    name: '', key: '', remark: '', impersonation_mode: 'passthrough', preset_id: '', custom_headers_json: '{}',
-  })
+  const [form, setForm] = useState<KeyForm>(emptyForm())
+  const [err, setErr] = useState('')
 
   async function load() {
     const [k, p] = await Promise.all([
@@ -33,23 +51,67 @@ export default function Keys() {
   }
   useEffect(() => { load().catch(console.error) }, [])
 
-  async function onCreate(e: FormEvent) {
+  function startCreate() {
+    setEditing(null)
+    setCreating(true)
+    setForm(emptyForm())
+    setErr('')
+  }
+
+  function startEdit(k: Key) {
+    setCreating(false)
+    setEditing(k)
+    setForm({
+      name: k.name,
+      key: '',
+      remark: k.remark || '',
+      impersonation_mode: k.impersonation_mode || 'passthrough',
+      preset_id: k.preset_id ? String(k.preset_id) : '',
+      custom_headers_json: k.custom_headers_json || '{}',
+    })
+    setErr('')
+  }
+
+  function cancelForm() {
+    setCreating(false)
+    setEditing(null)
+    setForm(emptyForm())
+    setErr('')
+  }
+
+  async function onSave(e: FormEvent) {
     e.preventDefault()
-    const body: any = {
+    setErr('')
+    const body: Record<string, unknown> = {
       name: form.name,
-      key: form.key || undefined,
       remark: form.remark,
       impersonation_mode: form.impersonation_mode,
-      custom_headers_json: form.custom_headers_json,
-      enabled: true,
+      custom_headers_json: form.custom_headers_json || '{}',
     }
-    if (form.impersonation_mode === 'preset' && form.preset_id) {
-      body.preset_id = Number(form.preset_id)
+    if (form.key.trim()) {
+      body.key = form.key.trim()
     }
-    await api('/api/keys', { method: 'POST', body: JSON.stringify(body) })
-    setShow(false)
-    setForm({ name: '', key: '', remark: '', impersonation_mode: 'passthrough', preset_id: '', custom_headers_json: '{}' })
-    await load()
+    if (form.impersonation_mode === 'preset') {
+      if (form.preset_id) {
+        body.preset_id = Number(form.preset_id)
+      }
+    } else {
+      body.clear_preset = true
+    }
+    try {
+      if (editing) {
+        await api(`/api/keys/${editing.id}`, { method: 'PATCH', body: JSON.stringify(body) })
+      } else {
+        await api('/api/keys', {
+          method: 'POST',
+          body: JSON.stringify({ ...body, enabled: true, key: form.key || undefined }),
+        })
+      }
+      cancelForm()
+      await load()
+    } catch (ex: any) {
+      setErr(ex.message || '保存失败')
+    }
   }
 
   async function toggle(k: Key) {
@@ -63,14 +125,29 @@ export default function Keys() {
     await load()
   }
 
+  const formOpen = creating || !!editing
+
   return (
     <div>
-      <PageHeader title="用户 Key" subtitle="分发客户端凭证并绑定伪装策略" actions={<Button onClick={() => setShow((v) => !v)}>新建 Key</Button>} />
-      {show && (
+      <PageHeader
+        title="用户 Key"
+        subtitle="分发客户端凭证并绑定伪装策略"
+        actions={<Button onClick={startCreate}>新建 Key</Button>}
+      />
+      {err && <div className="mb-4 text-sm text-warn">{err}</div>}
+      {formOpen && (
         <Card className="p-6 mb-6">
-          <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={onCreate}>
+          <div className="text-base font-semibold mb-4">{editing ? `编辑 Key · ${editing.name}` : '新建 Key'}</div>
+          <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={onSave}>
             <div><Label>名称</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
-            <div><Label>Key（留空自动生成）</Label><Input value={form.key} onChange={(e) => setForm({ ...form, key: e.target.value })} placeholder="sk-..." /></div>
+            <div>
+              <Label>Key{editing ? '（留空则不修改）' : '（留空自动生成）'}</Label>
+              <Input
+                value={form.key}
+                onChange={(e) => setForm({ ...form, key: e.target.value })}
+                placeholder={editing ? '•••• 留空保持原 Key' : 'sk-...'}
+              />
+            </div>
             <div>
               <Label>伪装模式</Label>
               <Select value={form.impersonation_mode} onChange={(e) => setForm({ ...form, impersonation_mode: e.target.value })}>
@@ -88,7 +165,10 @@ export default function Keys() {
             </div>
             <div className="md:col-span-2"><Label>备注</Label><Input value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} /></div>
             <div className="md:col-span-2"><Label>自定义 Header JSON</Label><Textarea value={form.custom_headers_json} onChange={(e) => setForm({ ...form, custom_headers_json: e.target.value })} disabled={form.impersonation_mode !== 'custom'} /></div>
-            <div className="md:col-span-2 flex gap-2"><Button type="submit">保存</Button><Button type="button" variant="secondary" onClick={() => setShow(false)}>取消</Button></div>
+            <div className="md:col-span-2 flex gap-2">
+              <Button type="submit">保存</Button>
+              <Button type="button" variant="secondary" onClick={cancelForm}>取消</Button>
+            </div>
           </form>
         </Card>
       )}
@@ -100,16 +180,24 @@ export default function Keys() {
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2 font-mono text-xs">
                   <span>{reveal[k.id] ? k.key : k.key.slice(0, 6) + '••••' + k.key.slice(-4)}</span>
-                  <button onClick={() => setReveal((r) => ({ ...r, [k.id]: !r[k.id] }))} className="text-gray-400 hover:text-primary">
+                  <button type="button" onClick={() => setReveal((r) => ({ ...r, [k.id]: !r[k.id] }))} className="text-gray-400 hover:text-primary">
                     {reveal[k.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
-                  <button onClick={() => navigator.clipboard.writeText(k.key)} className="text-gray-400 hover:text-primary"><Copy className="w-4 h-4" /></button>
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard?.writeText(k.key)}
+                    className="text-gray-400 hover:text-primary"
+                    title="复制"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
                 </div>
               </td>
-              <td className="px-4 py-3"><Badge tone="accent">{k.impersonation_mode}</Badge></td>
+              <td className="px-4 py-3"><Badge tone="muted">{k.impersonation_mode}</Badge></td>
               <td className="px-4 py-3">{k.enabled ? <Badge>启用</Badge> : <Badge tone="warn">停用</Badge>}</td>
-              <td className="px-4 py-3 text-gray-500">{k.remark || '—'}</td>
-              <td className="px-4 py-3 space-x-2">
+              <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{k.remark || '—'}</td>
+              <td className="px-4 py-3 space-x-2 whitespace-nowrap">
+                <Button variant="ghost" onClick={() => startEdit(k)}>编辑</Button>
                 <Button variant="ghost" onClick={() => toggle(k)}>{k.enabled ? '停用' : '启用'}</Button>
                 <Button variant="danger" onClick={() => remove(k.id)}>删除</Button>
               </td>
