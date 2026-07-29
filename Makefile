@@ -10,7 +10,11 @@ test:
 	go test ./internal/... -count=1
 
 run: build
-	PHONYC_ADDR=:8080 PHONYC_DATA_DIR=./data ./bin/phonyc
+	PHONYC_ADDR=0.0.0.0:23342 PHONYC_DATA_DIR=./data ./bin/phonyc
 
 clean:
 	rm -rf bin data web/node_modules
+
+.PHONY: deploy
+deploy:
+	./scripts/deploy.sh

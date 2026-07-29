@@ -70,3 +70,20 @@ cd web && npm run dev
 ## 优先级
 
 渠道 `priority`：**0 为默认最低**，数字越大越优先；同优先级随机；禁止负数。
+
+## Deploy (port 23342)
+
+```bash
+./scripts/deploy.sh
+# or
+make deploy
+systemctl status phonyc
+```
+
+Access URLs after deploy:
+- http://127.0.0.1:23342/
+- http://172.16.0.106:23342/
+- http://202.189.7.62:23342/
+
+Service is managed by systemd unit `phonyc.service` with `Restart=always`.
+
