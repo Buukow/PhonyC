@@ -147,23 +147,25 @@ func (s *Store) DashboardSummary() (*DashboardSummary, error) {
 
 	rows, err := s.db.Query(`SELECT user_key_id, COALESCE(SUM(requests),0) AS c FROM key_stats_daily WHERE day>=? GROUP BY user_key_id ORDER BY c DESC LIMIT 5`, day7)
 	if err == nil {
-		defer rows.Close()
 		for rows.Next() {
 			var id, c int64
 			if err := rows.Scan(&id, &c); err != nil {
 				break
 			}
 			name := fmt.Sprintf("key#%d", id)
-			if k, err := s.GetUserKey(id); err == nil {
-				name = k.Name
-			}
 			out.TopKeys = append(out.TopKeys, NameCount{ID: id, Name: name, Count: c})
+		}
+		_ = rows.Close()
+		// resolve names after rows closed (needs DB conn)
+		for i := range out.TopKeys {
+			if k, err := s.GetUserKey(out.TopKeys[i].ID); err == nil {
+				out.TopKeys[i].Name = k.Name
+			}
 		}
 	}
 
 	rows2, err := s.db.Query(`SELECT client_model, COUNT(1) AS c FROM request_meta WHERE created_at>=? AND client_model!='' GROUP BY client_model ORDER BY c DESC LIMIT 5`, day7+"T00:00:00Z")
 	if err == nil {
-		defer rows2.Close()
 		for rows2.Next() {
 			var name string
 			var c int64
@@ -172,12 +174,12 @@ func (s *Store) DashboardSummary() (*DashboardSummary, error) {
 			}
 			out.TopModels = append(out.TopModels, NameCount{Name: name, Count: c})
 		}
+		_ = rows2.Close()
 	}
 
 	rows3, err := s.db.Query(`SELECT id, request_id, created_at, user_key_id, client_model, upstream_model, channel_id, method, path, status_code, ttfb_ms, total_ms, error_summary, impersonation_mode
 FROM request_meta WHERE status_code>=400 OR error_summary!='' ORDER BY id DESC LIMIT 10`)
 	if err == nil {
-		defer rows3.Close()
 		for rows3.Next() {
 			var m RequestMeta
 			var cAt string
@@ -196,6 +198,7 @@ FROM request_meta WHERE status_code>=400 OR error_summary!='' ORDER BY id DESC L
 			}
 			out.RecentErrors = append(out.RecentErrors, m)
 		}
+		_ = rows3.Close()
 	}
 	return out, nil
 }

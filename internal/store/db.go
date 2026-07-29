@@ -24,6 +24,7 @@ func Open(dbPath string) (*Store, error) {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 	db.SetConnMaxLifetime(0)
 	s := &Store{db: db}
 	if err := s.migrate(); err != nil {

@@ -386,13 +386,12 @@ func (h *Handler) logMeta(reqID string, keyID *int64, clientModel, upstreamModel
 		ErrorSummary:      errSummary,
 		ImpersonationMode: mode,
 	}
-	// best-effort
-	_ = h.Store.InsertRequestMeta(m)
+	go func() { _ = h.Store.InsertRequestMeta(m) }()
 }
 
 func (h *Handler) stats(keyID int64, isErr bool) {
 	day := time.Now().UTC().Format("2006-01-02")
-	_ = h.Store.IncrKeyStats(keyID, day, isErr)
+	go func() { _ = h.Store.IncrKeyStats(keyID, day, isErr) }()
 }
 
 // Ensure unused import quiet for httputil if we don't use reverse proxy directly
