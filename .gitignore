@@ -1,0 +1,8 @@
+# local secrets/captures
+relay-*.log
+*.log
+data/
+dist/
+node_modules/
+.env
+.env.*
