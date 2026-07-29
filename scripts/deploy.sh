@@ -26,7 +26,11 @@ mkdir -p "$DATA_DIR"
 
 if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q "^${SERVICE_NAME}.service"; then
   echo "==> restarting systemd service ${SERVICE_NAME}"
-  systemctl restart "$SERVICE_NAME"
+  systemctl stop "$SERVICE_NAME" || true
+  fuser -k 23342/tcp 2>/dev/null || true
+  pkill -x phonyc 2>/dev/null || true
+  sleep 0.5
+  systemctl start "$SERVICE_NAME"
   systemctl --no-pager --full status "$SERVICE_NAME" | head -20
 else
   echo "==> systemd unit missing; starting binary directly"
