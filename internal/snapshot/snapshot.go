@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"sort"
 	"sync/atomic"
 
 	"github.com/phonyc/phonyc/internal/store"
@@ -99,6 +100,7 @@ func (m *Manager) Reload() error {
 			snap.ClientModels = append(snap.ClientModels, cm.ClientModel)
 		}
 	}
+	sort.Strings(snap.ClientModels)
 	snap.Version = m.ver.Add(1)
 	m.ptr.Store(snap)
 	return nil

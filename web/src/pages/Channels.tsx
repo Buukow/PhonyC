@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { api } from '@/lib/api'
+import ChannelModelEditor, { type ModelDraft } from '@/components/ChannelModelEditor'
 import { Badge, Button, Card, Input, Label, PageHeader, Select, Table, Textarea } from '@/components/ui'
 
 type Channel = {
@@ -45,6 +46,7 @@ export default function Channels() {
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Channel | null>(null)
   const [form, setForm] = useState<ChannelForm>(emptyForm())
+  const [models, setModels] = useState<ModelDraft[]>([])
   const [err, setErr] = useState('')
 
   async function load() {
@@ -57,10 +59,11 @@ export default function Channels() {
     setEditing(null)
     setCreating(true)
     setForm(emptyForm())
+    setModels([])
     setErr('')
   }
 
-  function startEdit(ch: Channel) {
+  async function startEdit(ch: Channel) {
     setCreating(false)
     setEditing(ch)
     setForm({
@@ -73,12 +76,25 @@ export default function Channels() {
       extra_headers_json: ch.extra_headers_json || '{}',
     })
     setErr('')
+    try {
+      const m = await api<{ items: any[] }>(`/api/channels/${ch.id}/models`)
+      setModels((m.items || []).map((x) => ({
+        client_model: x.client_model,
+        upstream_model: x.upstream_model || x.client_model,
+        rewrite_model: !!x.rewrite_model,
+        enabled: x.enabled !== false,
+      })))
+    } catch (ex: any) {
+      setModels([])
+      setErr(ex.message || '加载模型失败')
+    }
   }
 
   function cancelForm() {
     setCreating(false)
     setEditing(null)
     setForm(emptyForm())
+    setModels([])
     setErr('')
   }
 
@@ -93,19 +109,27 @@ export default function Channels() {
       timeout_ms: Number(form.timeout_ms),
       extra_headers_json: form.extra_headers_json || '{}',
     }
-    if (form.api_key.trim()) {
-      payload.api_key = form.api_key
-    }
+    if (form.api_key.trim()) payload.api_key = form.api_key
+    const modelPayload = models
+      .filter((m) => m.client_model.trim())
+      .map((m) => ({
+        client_model: m.client_model.trim(),
+        upstream_model: (m.upstream_model || m.client_model).trim(),
+        rewrite_model: !!m.rewrite_model,
+        enabled: m.enabled !== false,
+      }))
+
     try {
       if (editing) {
-        await api(`/api/channels/${editing.id}`, {
-          method: 'PATCH',
-          body: JSON.stringify(payload),
+        await api(`/api/channels/${editing.id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+        await api(`/api/channels/${editing.id}/models`, {
+          method: 'PUT',
+          body: JSON.stringify({ items: modelPayload }),
         })
       } else {
         await api('/api/channels', {
           method: 'POST',
-          body: JSON.stringify({ ...payload, api_key: form.api_key, enabled: true }),
+          body: JSON.stringify({ ...payload, api_key: form.api_key, enabled: true, models: modelPayload }),
         })
       }
       cancelForm()
@@ -132,7 +156,7 @@ export default function Channels() {
     <div>
       <PageHeader
         title="渠道"
-        subtitle="配置上游协议、Base URL 与优先级（0 最低，越大越优先；同优先级随机）"
+        subtitle="配置上游协议、Base URL、模型映射与优先级（0 最低，越大越优先）"
         actions={<Button onClick={startCreate}><Plus className="w-4 h-4" />新建渠道</Button>}
       />
       {err && <div className="mb-4 text-sm text-warn">{err}</div>}
@@ -150,7 +174,7 @@ export default function Channels() {
             </div>
             <div className="md:col-span-2"><Label>Base URL</Label><Input placeholder="https://api.example.com" value={form.base_url} onChange={(e) => setForm({ ...form, base_url: e.target.value })} required /></div>
             <div className="md:col-span-2">
-              <Label>上游 API Key{editing ? '（留空则不修改）' : ''}</Label>
+              <Label>上游 API Key{editing ? '（留空则不修改；拉取模型时将使用已保存 Key）' : ''}</Label>
               <Input
                 value={form.api_key}
                 onChange={(e) => setForm({ ...form, api_key: e.target.value })}
@@ -158,11 +182,24 @@ export default function Channels() {
               />
             </div>
             <div>
-              <Label>优先级（0 最低默认，数字越大越优先，禁止负数）</Label>
+              <Label>优先级（0 最低默认，数字越大越优先）</Label>
               <Input type="number" min={0} value={form.priority} onChange={(e) => setForm({ ...form, priority: Math.max(0, Number(e.target.value)) })} />
             </div>
             <div><Label>超时 (ms)</Label><Input type="number" value={form.timeout_ms} onChange={(e) => setForm({ ...form, timeout_ms: Number(e.target.value) })} /></div>
             <div className="md:col-span-2"><Label>额外 Header JSON</Label><Textarea value={form.extra_headers_json} onChange={(e) => setForm({ ...form, extra_headers_json: e.target.value })} /></div>
+
+            <ChannelModelEditor
+              models={models}
+              onChange={setModels}
+              channelId={editing?.id}
+              probe={{
+                base_url: form.base_url,
+                api_key: form.api_key.trim(),
+                protocol: form.protocol,
+                extra_headers_json: form.extra_headers_json,
+              }}
+            />
+
             <div className="md:col-span-2 flex gap-2">
               <Button type="submit">保存</Button>
               <Button type="button" variant="secondary" onClick={cancelForm}>取消</Button>

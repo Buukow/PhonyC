@@ -13,6 +13,7 @@ import (
 	"github.com/phonyc/phonyc/internal/healthcheck"
 	"github.com/phonyc/phonyc/internal/snapshot"
 	"github.com/phonyc/phonyc/internal/store"
+	"github.com/phonyc/phonyc/internal/upstream"
 )
 
 type API struct {
@@ -43,8 +44,11 @@ func (a *API) Register(r *gin.Engine) {
 	authz.PATCH("/channels/:id", a.updateChannel)
 	authz.DELETE("/channels/:id", a.deleteChannel)
 
+	authz.POST("/channels/probe-models", a.probeModels)
+	authz.POST("/channels/:id/fetch-models", a.fetchChannelModels)
 	authz.GET("/channels/:id/models", a.listModels)
 	authz.POST("/channels/:id/models", a.createModel)
+	authz.PUT("/channels/:id/models", a.replaceModels)
 	authz.PATCH("/channel-models/:id", a.updateModel)
 	authz.DELETE("/channel-models/:id", a.deleteModel)
 
@@ -203,11 +207,15 @@ func (a *API) listChannels(c *gin.Context) {
 }
 
 func (a *API) createChannel(c *gin.Context) {
-	var in store.ChannelInput
-	if err := c.BindJSON(&in); err != nil {
+	var req struct {
+		store.ChannelInput
+		Models []store.ChannelModelInput `json:"models"`
+	}
+	if err := c.BindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": "invalid body"})
 		return
 	}
+	in := req.ChannelInput
 	in.Protocol = strings.ToLower(strings.TrimSpace(in.Protocol))
 	if in.Name == "" || (in.Protocol != "openai" && in.Protocol != "anthropic") || in.BaseURL == "" {
 		c.JSON(400, gin.H{"error": "name, protocol(openai|anthropic), base_url required"})
@@ -221,6 +229,12 @@ func (a *API) createChannel(c *gin.Context) {
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
+	}
+	if len(req.Models) > 0 {
+		if _, err := a.Store.ReplaceChannelModels(ch.ID, req.Models); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
 	}
 	a.reload()
 	c.JSON(200, ch)
@@ -326,6 +340,85 @@ func (a *API) deleteModel(c *gin.Context) {
 	}
 	a.reload()
 	c.JSON(200, gin.H{"ok": true})
+}
+
+
+func (a *API) probeModels(c *gin.Context) {
+	var req struct {
+		BaseURL          string `json:"base_url"`
+		APIKey           string `json:"api_key"`
+		Protocol         string `json:"protocol"`
+		ExtraHeadersJSON string `json:"extra_headers_json"`
+		ChannelID        int64  `json:"channel_id"`
+	}
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "invalid body"})
+		return
+	}
+	if strings.TrimSpace(req.APIKey) == "" && req.ChannelID > 0 {
+		if ch, err := a.Store.GetChannel(req.ChannelID); err == nil {
+			req.APIKey = ch.APIKey
+			if strings.TrimSpace(req.BaseURL) == "" {
+				req.BaseURL = ch.BaseURL
+			}
+			if strings.TrimSpace(req.Protocol) == "" {
+				req.Protocol = ch.Protocol
+			}
+			if strings.TrimSpace(req.ExtraHeadersJSON) == "" || req.ExtraHeadersJSON == "{}" {
+				req.ExtraHeadersJSON = ch.ExtraHeadersJSON
+			}
+		}
+	}
+	ids, err := upstream.FetchModelIDs(upstream.FetchRequest{
+		BaseURL: req.BaseURL, APIKey: req.APIKey, Protocol: req.Protocol, ExtraHeadersJSON: req.ExtraHeadersJSON,
+	})
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"items": ids})
+}
+
+func (a *API) fetchChannelModels(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	ch, err := a.Store.GetChannel(id)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "not found"})
+		return
+	}
+	ids, err := upstream.FetchModelIDs(upstream.FetchRequest{
+		BaseURL: ch.BaseURL, APIKey: ch.APIKey, Protocol: ch.Protocol, ExtraHeadersJSON: ch.ExtraHeadersJSON,
+	})
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"items": ids})
+}
+
+func (a *API) replaceModels(c *gin.Context) {
+	cid, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	if _, err := a.Store.GetChannel(cid); err != nil {
+		c.JSON(404, gin.H{"error": "channel not found"})
+		return
+	}
+	var req struct {
+		Items []store.ChannelModelInput `json:"items"`
+	}
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "invalid body"})
+		return
+	}
+	list, err := a.Store.ReplaceChannelModels(cid, req.Items)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	if list == nil {
+		list = []store.ChannelModel{}
+	}
+	a.reload()
+	c.JSON(200, gin.H{"items": list})
 }
 
 func (a *API) listKeys(c *gin.Context) {

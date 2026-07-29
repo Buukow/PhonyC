@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"strings"
 )
 
 func (s *Store) ListChannelModels(channelID int64) ([]ChannelModel, error) {
@@ -140,4 +141,47 @@ func (s *Store) DeleteChannelModel(id int64) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+func (s *Store) DeleteChannelModelsByChannel(channelID int64) error {
+	_, err := s.db.Exec(`DELETE FROM channel_models WHERE channel_id=?`, channelID)
+	return err
+}
+
+// ReplaceChannelModels atomically replaces all models for a channel.
+func (s *Store) ReplaceChannelModels(channelID int64, items []ChannelModelInput) ([]ChannelModel, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.Exec(`DELETE FROM channel_models WHERE channel_id=?`, channelID); err != nil {
+		return nil, err
+	}
+	now := formatTime(nowUTC())
+	for _, in := range items {
+		name := strings.TrimSpace(in.ClientModel)
+		if name == "" {
+			continue
+		}
+		up := strings.TrimSpace(in.UpstreamModel)
+		if up == "" {
+			up = name
+		}
+		rw, en := 0, 1
+		if in.RewriteModel != nil && *in.RewriteModel {
+			rw = 1
+		}
+		if in.Enabled != nil && !*in.Enabled {
+			en = 0
+		}
+		if _, err := tx.Exec(`INSERT INTO channel_models(channel_id, client_model, upstream_model, rewrite_model, enabled, created_at, updated_at) VALUES(?,?,?,?,?,?,?)`,
+			channelID, name, up, rw, en, now, now); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return s.ListChannelModels(channelID)
 }
