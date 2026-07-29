@@ -6,3 +6,8 @@ dist/
 node_modules/
 .env
 .env.*
+web/dist/
+bin/
+*.exe
+*.test
+.DS_Store

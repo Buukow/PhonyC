@@ -47,6 +47,16 @@ PhonyC 是一个用 Go 实现的**轻量 AI API 中转网关**：第三方客户
 - **Claude Code** `claude-cli/2.1.220` → `POST /v1/messages`，特征头：`Anthropic-Version`、`Anthropic-Beta`、`X-App`、`X-Stainless-*`
 - **普通 SDK** → `POST /v1/chat/completions` 等极简头
 
+**path → 协议 的固定映射（参考 New API `relay-router.go`）**：请求 path 本身即决定 API 形态，从而决定应路由到的协议渠道。
+
+| path | API 形态 | 目标协议 |
+|------|----------|----------|
+| `POST /v1/messages` | Claude Messages | `anthropic` |
+| `POST /v1/responses` | OpenAI Responses | `openai` |
+| `POST /v1/chat/completions` | OpenAI Chat | `openai` |
+| `POST /v1/completions` | OpenAI 文本补全 | `openai` |
+| `GET /v1/models` | 模型列出 | 由 Header 判别（见 §5.8） |
+
 ---
 
 ## 2. 范围
@@ -54,9 +64,11 @@ PhonyC 是一个用 Go 实现的**轻量 AI API 中转网关**：第三方客户
 ### 2.1 MVP 必须
 
 - Go + Gin 代理入口；`httputil.ReverseProxy`（或等价）+ Header 修改
-- 双协议渠道插件：`openai`、`anthropic`
-- 多渠道；渠道级 `priority`；模型命中后高优先级优先，同优先级 **随机**
+- 双协议渠道插件：`openai`、`anthropic`；**接入渠道时显式选择协议**
+- 路由：**先按请求 path 判定协议**（`/v1/messages`→anthropic，`/v1/responses` `/v1/chat/completions` `/v1/completions`→openai），**再按模型 ID 在该协议渠道中选渠**
+- 多渠道；渠道级 `priority`；模型命中后高优先级优先，同优先级 **随机**（不禁止随机分流）
 - 模型映射：`client_model` / `upstream_model` / 每映射 `rewrite_model` 开关（双模式 C）
+- **模型列出接口**：`GET /v1/models`（及 anthropic 形态）聚合返回当前所有 enabled 渠道配置的模型，New API 兼容格式
 - 用户 API Key：启禁、明文可展示、伪装三模式
 - 内置 + 可编辑客户端预设（Codex / Claude Code 种子）
 - 管理端：首次强制创建管理员；JWT 登录；改密
@@ -69,9 +81,11 @@ PhonyC 是一个用 Go 实现的**轻量 AI API 中转网关**：第三方客户
 - 跨渠道主备 failover、同渠多 Key 重试
 - OpenAI ↔ Anthropic body 互译
 - 成功请求 body/全量 header 落库
+- 精确字节计量（`bytes_in`/`bytes_out`）：与玻璃穿透/SSE 透传冲突，MVP 不做
 - 多管理员、RBAC、计费充值、注册多租户
 - QPS 限流、IP 白名单、Webhook
 - 多实例配置中心、响应内容审查
+- 除 `/v1/models` 之外的 body 聚合／协议互译（models 列出属 MVP 必须，见 §2.1）
 
 ### 2.3 后期
 
@@ -98,13 +112,15 @@ PhonyC 是一个用 Go 实现的**轻量 AI API 中转网关**：第三方客户
 │                                               │
 │  Pipeline                                     │
 │   1. 校验 user key + 伪装策略                   │
-│   2. Peek body.model                           │
-│   3. Router: 模型匹配 + priority / random      │
-│   4. Protocol Plugin (openai | anthropic)      │
-│   5. Header 模板：渠道 extra + 伪装            │
-│   6. 可选字节级 rewrite model                  │
-│   7. ReverseProxy 透传                         │
-│   8. request_meta + 统计                       │
+│   2. Path → 协议 (responses/chat→openai;        │
+│           messages→anthropic)                  │
+│   3. Peek body.model                           │
+│   4. Router: 协议内 模型匹配 + priority/随机     │
+│   5. Protocol Plugin (openai | anthropic)      │
+│   6. Header 模板：渠道 extra + 伪装            │
+│   7. 可选字节级 rewrite model                  │
+│   8. ReverseProxy 透传                         │
+│   9. request_meta + 统计                       │
 │                                               │
 │  SQLite + 内存热缓存（写后失效）                │
 └──────────────────────────────────────────────┘
@@ -120,15 +136,23 @@ PhonyC 是一个用 Go 实现的**轻量 AI API 中转网关**：第三方客户
 | `pipeline` | 认证、peek/rewrite、编排 |
 | `protocol` | openai/anthropic 插件接口 |
 | `template` | Header 模板与预设应用 |
-| `router` | 模型 → 渠道选择 |
+| `router` | 协议内 模型 → 渠道选择 |
+| `modelcatalog` | 聚合各渠道模型，供 `/v1/models` 列出 |
 | `store` | SQLite 与仓储 |
 | `adminapi` | 管理 REST |
 | `web` | 前端工程 |
 | `metrics` / `logmeta` | 统计与元数据日志 |
 
-### 3.2 配置热更新
+### 3.2 配置热更新（最小方案）
 
-管理写 API 成功提交 SQLite 后 bump 版本 / 清空相关内存缓存；代理热路径只读缓存。
+单机单进程，采用「全局版本号 + 全量重建」的最小一致性方案，不做细粒度失效：
+
+- 内存中维护一份只读快照 `configSnapshot{channels, channelModels, userKeys, presets, catalogByProtocol}` 与一个 `version uint64`。
+- 代理热路径通过 `atomic.Pointer[configSnapshot]`（或 `RWMutex` 保护的指针）**只读**当前快照；一次请求内只加载一次，保证请求内自洽。
+- 任一管理写 API 成功提交 SQLite 后：重新从库全量加载、构建新快照、`version+1`、原子替换指针。旧快照被仍在处理的在途请求继续持有，无需加锁等待。
+- 无需区分「相关缓存」；重建成本对单机配置量（渠道/模型/Key 皆百级）可忽略。
+
+约束：写操作串行化（管理端天然低并发），避免两次写之间的丢失更新。
 
 ---
 
@@ -142,7 +166,7 @@ PhonyC 是一个用 Go 实现的**轻量 AI API 中转网关**：第三方客户
 ### 4.2 `channels`
 
 - `id`, `name`, `enabled`
-- `protocol`: `openai` | `anthropic`
+- `protocol`: `openai` | `anthropic` — **接入渠道时即选定**；决定该渠可承接的入口 path 族与鉴权骨架（见 §5.2 路由）
 - `base_url`
 - `api_key`（MVP 明文存储，依赖主机与卷权限；文档警示）
 - `priority`（整数，越大越优先）
@@ -161,13 +185,16 @@ MVP：**一渠一上游 Key**。
 - `enabled`
 - Unique `(channel_id, client_model)`
 
-**选渠算法**
+**选渠算法（path → 协议 → 模型 ID → 优先级）**
 
-1. Peek 顶层 `model` → `client_model`
-2. 过滤 enabled 的 mapping 与 channel
-3. 按 channel.priority 降序；最高档内 random
-4. 若 `rewrite_model`：字节替换 model value + 修正 `Content-Length`
-5. 无匹配：网关错误（非上游透传）
+1. **由入口 path 定协议**（见 §5.2 映射表）：`/v1/messages` → `anthropic`；`/v1/responses`、`/v1/chat/completions`、`/v1/completions` 等 → `openai`。得到 `required_protocol`。
+2. Peek 顶层 `model` → `client_model`。
+3. 候选集 = enabled channel ∩ `channel.protocol == required_protocol` ∩ 存在 enabled 的 `channel_models` 命中 `client_model`。
+4. 按 `channel.priority` 降序分档；**最高档内随机**（同优先级随机为既定行为，不禁止）。
+5. 选中渠对应的那条 mapping 决定 `rewrite_model` / `upstream_model`；若 `rewrite_model` 为真：字节替换 model value + 修正 `Content-Length`（规则见 §5.3）。
+6. 无候选：网关错误 `model_not_found`（非上游透传）；协议不匹配（如 anthropic 渠命中但 path 为 `/v1/responses`）不进入候选，等同无匹配。
+
+**关于 rewrite 混配的非确定性**：同一 `client_model` 在同优先级的多个渠中，若各条 mapping 的 `rewrite_model`/`upstream_model` 不一致，则随机选渠会导致同一请求被随机改写成不同上游 body。这是**允许的既定行为**（同优先级随机的自然结果），运维需自行保证同档渠的改写语义一致；MVP 不做一致性校验，仅在管理台对「同 client_model、同优先级、rewrite 目标不一致」给出**非阻断提示**。
 
 ### 4.4 `user_keys`
 
@@ -197,7 +224,8 @@ MVP：**一渠一上游 Key**。
 ### 4.7 `key_stats_daily`
 
 - `user_key_id`, `day`, `requests`, `errors`
-- 可选 `bytes_in`/`bytes_out`（难以准确时可先 0）
+- Unique `(user_key_id, day)`
+- **MVP 不做** `bytes_in`/`bytes_out`：玻璃穿透 + SSE 流式下无法在不破坏透传的前提下精确计量，明确降为非目标（见 §2.2）。后期若做，用请求 `Content-Length` + 响应累计写入字节做**近似**，并在字段上标注 approx。
 
 ### 4.8 `app_settings`
 
@@ -222,20 +250,41 @@ POST /v1/... + Bearer user_key
  → 上游状态/body 原样返回（网关错误除外）
 ```
 
-### 5.2 URL
+### 5.2 URL 与协议路由
 
+**path → 协议映射（进入代理时先判定，参考 New API）**
+
+| 客户端 path | API 形态 | 要求渠道 `protocol` |
+|-------------|----------|---------------------|
+| `POST /v1/chat/completions`、`/v1/completions` | OpenAI Chat | `openai` |
+| `POST /v1/responses`、`/v1/responses/compact` | OpenAI Responses | `openai` |
+| `POST /v1/messages` | Anthropic Messages | `anthropic` |
+| `GET /v1/models`、`/v1/models/:id` | 模型列出 | 见 §5.8（按 Header 判定返回格式） |
+
+- 选渠时**只在与该 path 协议匹配的渠道中**筛选（详见 §4.3）。
 - `upstream_url = channel.base_url + request.URL.Path + ?query`
-- Path/Query **原样**；不做协议 path 翻译
+- Path/Query **原样**；不做协议 path 翻译（openai↔anthropic body 互译仍是非目标）
+- MVP 不在文档表格内的 `POST /v1/*` path：透传到命中渠道，但**不做协议校验**，按 openai 形态 peek model；无法 peek 则 §5.3 处理
 
 ### 5.3 Body 规则
 
 | 情况 | 行为 |
 |------|------|
 | 默认 / rewrite off | 原始字节转发；只读 peek |
-| rewrite on | 只替换顶层 `"model"` 的字符串值；禁止整包 Unmarshal/Marshal |
-| 非 JSON 或无法 peek | 无法选渠 → 网关 400 |
-| 无 body / 非 POST（如部分 GET） | **MVP：凡进入需选渠的代理路径，必须能从 JSON body 顶层读到 model**；否则网关 400。不在 MVP 实现「无 model 的透传转发」或 models 列表聚合 |
-| 超 body 上限 | 网关 413/400 |
+| rewrite on | 只替换顶层 `"model"` 的字符串值；禁止整包 Unmarshal/Marshal（严格规则见下） |
+| 非 JSON 或无法 peek 顶层 model | 无法选渠 → 网关 400（`missing_model`） |
+| `GET /v1/models` 等模型列出 path | 不选渠、不读 body；由 §5.8 处理 |
+| 其它无 body / 无顶层 model 的 `POST /v1/*` | 网关 400（`missing_model`）。MVP 不实现「无 model 透传转发」 |
+| 超 body 上限 | 网关 413（`request_too_large`） |
+
+**顶层 model 的 peek / rewrite 严格规则**
+
+- **只认顶层键**：使用流式 JSON 扫描（如 `json.Decoder` token 流或等价状态机）定位深度为 1 的 `"model"` 键，**不得**匹配嵌套对象内的 `model`（如 `{"metadata":{"model":...}}` 不算）。
+- **只处理字符串值**：顶层 `model` 值必须是 JSON 字符串；非字符串（数组/对象/数字）视为无法 peek → 400。
+- **保留原始编码**：peek 时对值做 JSON 反转义得到逻辑模型名用于路由匹配；rewrite 时把 `upstream_model` 按 JSON 字符串规则重新转义后原位替换该值的字节区间，其余字节一律不动。
+- **Content-Length**：rewrite 后按新字节长度重设 `Content-Length`。
+- **Transfer-Encoding: chunked**：MVP 请求侧整包缓冲后以固定 `Content-Length` 转发（去除 `Transfer-Encoding`）；不透传 chunked 请求体。
+- **多次出现**：只替换第一个顶层 `model`；正常客户端不会有重复顶层键。
 
 **流式假设（MVP）**：常见客户端为整包 JSON 请求 + 可选 SSE 响应。响应不完整缓冲；请求可整包缓冲。
 
@@ -247,9 +296,11 @@ POST /v1/... + Bearer user_key
    - openai: `Authorization: Bearer {{api_key}}`  
    - anthropic: `x-api-key: {{api_key}}`；缺省可补 `anthropic-version`（默认 `2023-06-01`）  
 4. 渠道 `extra_headers`（模板渲染）  
-5. 伪装：  
-   - **passthrough**：保留客户端业务头，再盖鉴权  
-   - **preset / custom**：**先剥离** hop-by-hop 与用户鉴权后，对「客户端剩余业务头」采取 **strip-then-apply**：丢弃客户端业务头，仅应用预设/自定义模板（再写协议鉴权与渠道 extra）。需要保留个别客户端头时，在模板中显式声明或改用 passthrough  
+5. 伪装（**鉴权头受保护**：无论哪种模式，步骤 3 写入的协议鉴权头和步骤 4 的渠道 extra 都不被伪装逻辑覆盖或剥离）：  
+   - **passthrough**：保留客户端业务头；协议鉴权已在步骤 3 覆盖客户端原鉴权  
+   - **preset / custom**：对「客户端业务头」采取 **strip-then-apply**——先丢弃全部客户端业务头（hop-by-hop 与用户鉴权在步骤 1 已剥离），再套用预设/自定义模板；模板**不得**声明协议鉴权头（如 `Authorization`/`x-api-key`），此类头始终由步骤 3 决定。需要保留个别客户端头时，在模板中显式声明或改用 passthrough  
+
+   **顺序保证**：步骤 3 协议鉴权 → 步骤 4 渠道 extra → 步骤 5 伪装 strip/apply（只作用于业务头），因此伪装永远在鉴权之后，且不触碰鉴权与 extra。
 6. 若 rewrite：确保 `Content-Length` 正确  
 7. MVP 建议对上游去掉客户端 `Accept-Encoding` 或强制 identity，降低压缩陷阱  
 
@@ -258,7 +309,7 @@ POST /v1/... + Bearer user_key
 - 默认不改 body  
 - SSE 及时 Flush；`/v1` 避免缓冲中间件  
 - 上游 4xx/5xx 原样回传  
-- 网关错误统一 JSON，例如：
+- 网关错误统一 JSON 结构：
 
 ```json
 {
@@ -270,7 +321,20 @@ POST /v1/... + Bearer user_key
 }
 ```
 
-- 响应头可加 `X-Request-Id`
+**网关错误码表**（`type` 恒为 `gateway_error`，与上游透传错误区分；上游 4xx/5xx 原样回传不套此结构）：
+
+| HTTP | `code` | 触发场景 |
+|------|--------|----------|
+| 401 | `invalid_api_key` | user key 缺失、无效或已禁用 |
+| 400 | `model_required` | 需选渠路径但 body 顶层读不到 `model` |
+| 400 | `invalid_request_body` | body 非 JSON 或无法 peek |
+| 404 | `model_not_found` | 有 model 但无 enabled 的 `(protocol, client_model)` 命中 |
+| 409 | `protocol_mismatch` | path 推断的协议与命中渠道 `protocol` 不一致（详见 §5.2） |
+| 413 | `body_too_large` | 请求体超过 `PHONYC_MAX_BODY_BYTES` |
+| 502 | `upstream_unreachable` | 连接上游失败 / DNS / 拒绝 |
+| 504 | `upstream_timeout` | 超过渠道 `timeout_ms` |
+
+- 响应头可加 `X-Request-Id`（回显或生成，用于日志关联）
 
 ### 5.6 超时与取消
 
@@ -296,6 +360,53 @@ POST /v1/... + Bearer user_key
 - `X-Stainless-*` 骨架字段
 
 完整键值以仓库根目录抓包日志为 **seed 源**（`relay-user-request.log` 中 Codex/Claude 条目的 `user_headers`），导入后可在管理台编辑；PRD 不要求与抓包永久逐字节锁定。
+
+**占位符解析规则**
+
+- 语法 `{{var}}`；变量来源限定为 preset 自身字段，MVP 仅支持 `{{version}}`（取 `client_presets.version_label`）。
+- 解析时机：构建上游 Header 时一次性渲染。
+- 未定义变量：渲染为空串并记一条 warning，不阻断请求（避免因模板笔误导致整条链路 500）。
+- `custom` 模式的 `custom_headers_json` 同样走此渲染；其可用变量集合与 preset 一致。
+
+### 5.8 模型列出（`GET /v1/models`）
+
+参考 New API：**用 Header 判别客户端期望的协议格式**，再聚合返回该用户 Key 可用的模型集合。
+
+**协议判别**（进入 `/v1/models` 时）：
+
+| 条件 | 返回格式 |
+|------|----------|
+| 同时存在 `x-api-key` 与 `anthropic-version` | Anthropic 列出格式 |
+| 其它（默认） | OpenAI 列出格式 |
+
+**模型来源**：聚合所有 `enabled` 渠道下 `enabled` 的 `channel_models.client_model`，按 `client_model` 去重（跨渠道同名只出现一次）。MVP 不按 Key 做模型白名单过滤（无此字段），返回全量可用模型。
+
+**OpenAI 格式**（默认）：
+
+```json
+{
+  "object": "list",
+  "data": [
+    { "id": "Grok-4.5", "object": "model", "created": 1626777600, "owned_by": "phonyc" }
+  ]
+}
+```
+
+**Anthropic 格式**（命中上表第一行）：
+
+```json
+{
+  "data": [
+    { "type": "model", "id": "Grok-4.5", "display_name": "Grok-4.5", "created_at": "2021-07-20T00:00:00Z" }
+  ],
+  "first_id": "Grok-4.5",
+  "last_id": "Grok-4.5",
+  "has_more": false
+}
+```
+
+- `GET /v1/models/:id`：按 id 精确返回单条（同上格式的单对象），未命中返回 404 `model_not_found`。
+- 该 path **不选渠、不读 body、不打上游**；直接由 `modelcatalog` 从内存快照生成。
 
 ---
 

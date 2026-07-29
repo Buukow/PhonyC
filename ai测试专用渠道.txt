@@ -1,0 +1,21 @@
+  - 端口：3000 → http://127.0.1:3000（容器 new-api，已运行 4 小时，映射 0.0.0.0:3000->3000）
+  - 数据库：SQLite
+  - 日志目录：/app/logs（宿主机 /root/newapi-deploy/logs）
+
+  管理员账号
+
+  - 用户名：root
+  - 密码：rootpass123
+
+  API Key（令牌，明文）
+
+  sk-L8YEP2sXVonD6VVOwM8xugG6zqqCmekuqdT1JMQASQzlTy07
+
+
+
+
+  可用模型 ID
+
+  DeepSeek-V4-Flash
+  DeepSeek-V4-Pro
+  Grok-4.5
