@@ -59,7 +59,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <PageHeader title="设置" subtitle="系统参数、自动测活与管理员安全" />
+      <PageHeader title="设置" subtitle="系统参数、自动测活、日志管理与管理员安全" />
       {msg && <div className="mb-4 text-sm text-primary">{msg}</div>}
       {err && <div className="mb-4 text-sm text-warn">{err}</div>}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -115,13 +115,6 @@ export default function SettingsPage() {
                 onChange={(e) => setSettings({ ...settings, auto_test_disable_status_codes: e.target.value })}
               />
             </div>
-            <div>
-              <Label>日志保留天数</Label>
-              <Input
-                value={settings.log_retention_days || '30'}
-                onChange={(e) => setSettings({ ...settings, log_retention_days: e.target.value })}
-              />
-            </div>
             <div className="flex gap-2">
               <Button type="submit">保存设置</Button>
               <Button type="button" variant="secondary" onClick={runNow}>立即测活一轮</Button>
@@ -138,14 +131,35 @@ export default function SettingsPage() {
           )}
         </Card>
 
-        <Card className="p-6">
-          <div className="text-lg font-semibold mb-4">修改密码</div>
-          <form className="space-y-4" onSubmit={changePassword}>
-            <div><Label>当前密码</Label><Input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} required /></div>
-            <div><Label>新密码</Label><Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} /></div>
-            <Button type="submit">更新密码</Button>
-          </form>
-        </Card>
+        <div className="space-y-6">
+          <Card className="p-6">
+            <div className="text-lg font-semibold mb-4">日志管理</div>
+            <p className="text-xs text-gray-400 mb-4">
+              控制请求日志元数据在本地的保留时长；到期日志将由系统清理。
+            </p>
+            <form className="space-y-4" onSubmit={saveSettings}>
+              <div>
+                <Label>日志保留天数</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={settings.log_retention_days || '30'}
+                  onChange={(e) => setSettings({ ...settings, log_retention_days: e.target.value })}
+                />
+              </div>
+              <Button type="submit">保存日志设置</Button>
+            </form>
+          </Card>
+
+          <Card className="p-6">
+            <div className="text-lg font-semibold mb-4">修改密码</div>
+            <form className="space-y-4" onSubmit={changePassword}>
+              <div><Label>当前密码</Label><Input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} required /></div>
+              <div><Label>新密码</Label><Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} /></div>
+              <Button type="submit">更新密码</Button>
+            </form>
+          </Card>
+        </div>
       </div>
     </div>
   )
