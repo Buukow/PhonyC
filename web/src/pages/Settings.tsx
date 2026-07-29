@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { api } from '@/lib/api'
-import { Button, Card, Input, Label, PageHeader } from '@/components/ui'
+import { Badge, Button, Card, Input, Label, PageHeader } from '@/components/ui'
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({})
@@ -8,10 +8,15 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState('')
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
+  const [hc, setHc] = useState<any>(null)
 
-  useEffect(() => {
-    api<{ settings: Record<string, string> }>('/api/settings').then((r) => setSettings(r.settings || {})).catch(console.error)
-  }, [])
+  async function load() {
+    const r = await api<{ settings: Record<string, string> }>('/api/settings')
+    setSettings(r.settings || {})
+    const h = await api('/api/healthcheck/status')
+    setHc(h)
+  }
+  useEffect(() => { load().catch(console.error) }, [])
 
   async function saveSettings(e: FormEvent) {
     e.preventDefault()
@@ -19,6 +24,7 @@ export default function SettingsPage() {
     try {
       await api('/api/settings', { method: 'PATCH', body: JSON.stringify({ settings }) })
       setMsg('设置已保存')
+      await load()
     } catch (ex: any) {
       setErr(ex.message)
     }
@@ -36,15 +42,79 @@ export default function SettingsPage() {
     }
   }
 
+  async function runNow() {
+    setMsg(''); setErr('')
+    try {
+      await api('/api/healthcheck/run', { method: 'POST', body: '{}' })
+      setMsg('已触发一轮测活（后台执行）')
+      setTimeout(() => load().catch(() => {}), 2000)
+    } catch (ex: any) {
+      setErr(ex.message)
+    }
+  }
+
+  function setBool(key: string, on: boolean) {
+    setSettings({ ...settings, [key]: on ? 'true' : 'false' })
+  }
+
   return (
     <div>
-      <PageHeader title="设置" subtitle="系统参数与管理员安全" />
+      <PageHeader title="设置" subtitle="系统参数、自动测活与管理员安全" />
       {msg && <div className="mb-4 text-sm text-primary">{msg}</div>}
       {err && <div className="mb-4 text-sm text-warn">{err}</div>}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <Card className="p-6">
-          <div className="text-lg font-semibold mb-4">系统设置</div>
+          <div className="text-lg font-semibold mb-4">自动测活</div>
+          <p className="text-xs text-gray-400 mb-4">
+            仅测试「手动启用」的渠道（含测活临时禁用，用于恢复）。自动测活命中禁用状态码时临时禁用；下次成功则恢复。渠道列表「测活」按钮只出报告、不改禁用状态。优先级：0 最低，数字越大越优先。
+          </p>
           <form className="space-y-4" onSubmit={saveSettings}>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={(settings.auto_test_enabled || 'false') === 'true'}
+                onChange={(e) => setBool('auto_test_enabled', e.target.checked)}
+              />
+              开启自动测活
+              {hc?.enabled ? <Badge>运行中</Badge> : <Badge tone="muted">关闭</Badge>}
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>间隔（分钟）</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={settings.auto_test_interval_minutes || '10'}
+                  onChange={(e) => setSettings({ ...settings, auto_test_interval_minutes: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>随机偏移（分钟）</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={settings.auto_test_random_offset_minutes || '0'}
+                  onChange={(e) => setSettings({ ...settings, auto_test_random_offset_minutes: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <Label>测活提问词（默认 hi）</Label>
+              <Input
+                value={settings.auto_test_prompt ?? 'hi'}
+                onChange={(e) => setSettings({ ...settings, auto_test_prompt: e.target.value })}
+              />
+            </div>
+            <div className="text-xs text-gray-400 bg-canvas rounded-xl px-3 py-2">
+              测活模型：固定使用<strong>每个渠道模型表中第一个启用映射</strong>（不再使用全局/渠道 test_model 覆盖）。
+            </div>
+            <div>
+              <Label>临时禁用状态码（逗号分隔）</Label>
+              <Input
+                value={settings.auto_test_disable_status_codes || '401,403,404,503'}
+                onChange={(e) => setSettings({ ...settings, auto_test_disable_status_codes: e.target.value })}
+              />
+            </div>
             <div>
               <Label>日志保留天数</Label>
               <Input
@@ -52,9 +122,22 @@ export default function SettingsPage() {
                 onChange={(e) => setSettings({ ...settings, log_retention_days: e.target.value })}
               />
             </div>
-            <Button type="submit">保存设置</Button>
+            <div className="flex gap-2">
+              <Button type="submit">保存设置</Button>
+              <Button type="button" variant="secondary" onClick={runNow}>立即测活一轮</Button>
+            </div>
           </form>
+          {hc?.last_summary?.finished_at && (
+            <div className="mt-4 text-xs text-gray-400 space-y-1">
+              <div>上次测活：{hc.last_summary.finished_at}</div>
+              <div>
+                总计 {hc.last_summary.total} · 成功 {hc.last_summary.ok} · 失败 {hc.last_summary.failed} ·
+                临时禁用 {hc.last_summary.disabled} · 恢复 {hc.last_summary.recovered}
+              </div>
+            </div>
+          )}
         </Card>
+
         <Card className="p-6">
           <div className="text-lg font-semibold mb-4">修改密码</div>
           <form className="space-y-4" onSubmit={changePassword}>

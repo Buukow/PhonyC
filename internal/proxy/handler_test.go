@@ -48,7 +48,7 @@ func setupTest(t *testing.T) (*Handler, *store.Store, *snapshot.Manager, string)
 	if err := snap.Reload(); err != nil {
 		t.Fatal(err)
 	}
-	h := NewHandler(snap, st, 1<<20)
+	h := NewHandler(snap, st, nil, 1<<20)
 	return h, st, snap, dir
 }
 
@@ -123,7 +123,7 @@ func TestProxyRewriteAndHeaders(t *testing.T) {
 	_, _ = st.CreateUserKey(store.UserKeyInput{Name: "k", Key: "sk-abc", Enabled: &en, ImpersonationMode: "passthrough"})
 	snap := snapshot.NewManager(st)
 	_ = snap.Reload()
-	h := NewHandler(snap, st, 1<<20)
+	h := NewHandler(snap, st, nil, 1<<20)
 	r := gin.New()
 	r.Any("/v1/*path", h.Handle)
 

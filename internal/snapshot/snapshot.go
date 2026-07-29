@@ -89,7 +89,7 @@ func (m *Manager) Reload() error {
 		cm := models[i]
 		snap.ModelsByChannel[cm.ChannelID] = append(snap.ModelsByChannel[cm.ChannelID], cm)
 		ch, ok := snap.ChannelByID[cm.ChannelID]
-		if !ok || !ch.Enabled || !cm.Enabled {
+		if !ok || !ch.Routable() || !cm.Enabled {
 			continue
 		}
 		cand := ModelCandidate{Channel: *ch, Model: cm}

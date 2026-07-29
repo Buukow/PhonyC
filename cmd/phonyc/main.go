@@ -10,7 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/phonyc/phonyc/internal/admin"
+	"github.com/phonyc/phonyc/internal/capture"
 	"github.com/phonyc/phonyc/internal/config"
+	"github.com/phonyc/phonyc/internal/healthcheck"
 	"github.com/phonyc/phonyc/internal/proxy"
 	"github.com/phonyc/phonyc/internal/seed"
 	"github.com/phonyc/phonyc/internal/snapshot"
@@ -43,24 +45,23 @@ func main() {
 		log.Fatal(err)
 	}
 
+	capMgr := capture.New(st)
+	hc := healthcheck.New(st, snap)
+	hc.Start()
+
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(gin.Logger())
-
-	// Disable buffering-ish: no default body size except our own
 	r.MaxMultipartMemory = cfg.MaxBodyBytes
 
 	auth := &admin.Auth{Store: st, Secret: secret, TTLHours: cfg.JWTTTLHours}
-	api := &admin.API{Store: st, Auth: auth, Snap: snap}
+	api := &admin.API{Store: st, Auth: auth, Snap: snap, Health: hc, Capture: capMgr}
 	api.Register(r)
 
-	ph := proxy.NewHandler(snap, st, cfg.MaxBodyBytes)
+	ph := proxy.NewHandler(snap, st, capMgr, cfg.MaxBodyBytes)
 	r.Any("/v1/*path", ph.Handle)
-	// also exact /v1/models without catch issues — gin *path includes leading
-	// Actually r.Any("/v1/*path") matches /v1/xxx; for /v1 itself maybe not needed.
 
-	// static frontend
 	sub, err := fs.Sub(webembed.DistFS, "dist")
 	if err == nil {
 		fileServer := http.FileServer(http.FS(sub))
@@ -70,7 +71,6 @@ func main() {
 				c.JSON(404, gin.H{"error": "not found"})
 				return
 			}
-			// try file
 			fp := strings.TrimPrefix(path.Clean(p), "/")
 			if fp == "" || fp == "." {
 				fp = "index.html"
@@ -80,7 +80,6 @@ func main() {
 				fileServer.ServeHTTP(c.Writer, c.Request)
 				return
 			}
-			// SPA fallback
 			c.Request.URL.Path = "/"
 			fileServer.ServeHTTP(c.Writer, c.Request)
 		})

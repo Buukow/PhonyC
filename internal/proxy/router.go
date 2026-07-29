@@ -20,7 +20,7 @@ func SelectChannel(snap *snapshot.Snapshot, protocol, clientModel string) (snaps
 		if c.Channel.Protocol != protocol {
 			continue
 		}
-		if !c.Channel.Enabled || !c.Model.Enabled {
+		if !c.Channel.Routable() || !c.Model.Enabled {
 			continue
 		}
 		matched = append(matched, c)

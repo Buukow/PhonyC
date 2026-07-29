@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/phonyc/phonyc/internal/body"
+	"github.com/phonyc/phonyc/internal/capture"
 	"github.com/phonyc/phonyc/internal/protocol"
 	"github.com/phonyc/phonyc/internal/snapshot"
 	"github.com/phonyc/phonyc/internal/store"
@@ -25,14 +26,16 @@ import (
 type Handler struct {
 	Snap         *snapshot.Manager
 	Store        *store.Store
+	Capture      *capture.Manager
 	MaxBodyBytes int64
 	Client       *http.Client
 }
 
-func NewHandler(snap *snapshot.Manager, st *store.Store, maxBody int64) *Handler {
+func NewHandler(snap *snapshot.Manager, st *store.Store, cap *capture.Manager, maxBody int64) *Handler {
 	return &Handler{
 		Snap:         snap,
 		Store:        st,
+		Capture:      cap,
 		MaxBodyBytes: maxBody,
 		Client: &http.Client{
 			Transport: &http.Transport{
@@ -105,6 +108,12 @@ func (h *Handler) Handle(c *gin.Context) {
 
 	path := c.Request.URL.Path
 
+	// capture-only mode: armed system key never enters routing (3.1 B+C)
+	if userKey.Name == "header-capture" {
+		h.handleCaptureOnly(c, reqID, path)
+		return
+	}
+
 	// models catalog
 	if protocol.IsModelsPath(path) {
 		h.handleModels(c, snap, userKey, reqID, start)
@@ -117,7 +126,7 @@ func (h *Handler) Handle(c *gin.Context) {
 		var ge gwError
 		if errors.As(err, &ge) {
 			writeGatewayError(c, ge)
-			h.logMeta(reqID, &userKey.ID, "", "", nil, c.Request.Method, path, ge.HTTP, 0, time.Since(start), ge.Message, userKey.ImpersonationMode)
+			h.logMeta(reqID, userKeyIDPtr(userKey), "", "", nil, c.Request.Method, path, ge.HTTP, 0, time.Since(start), ge.Message, userKey.ImpersonationMode)
 			return
 		}
 		writeGatewayError(c, gwError{400, "invalid_request_body", "failed to read body"})
@@ -133,7 +142,7 @@ func (h *Handler) Handle(c *gin.Context) {
 			msg = err.Error()
 		}
 		writeGatewayError(c, gwError{400, code, msg})
-		h.logMeta(reqID, &userKey.ID, "", "", nil, c.Request.Method, path, 400, 0, time.Since(start), msg, userKey.ImpersonationMode)
+		h.logMeta(reqID, userKeyIDPtr(userKey), "", "", nil, c.Request.Method, path, 400, 0, time.Since(start), msg, userKey.ImpersonationMode)
 		return
 	}
 
@@ -141,7 +150,7 @@ func (h *Handler) Handle(c *gin.Context) {
 	cand, ok := SelectChannel(snap, reqProtocol, clientModel)
 	if !ok {
 		writeGatewayError(c, gwError{404, "model_not_found", fmt.Sprintf("no enabled channel for model %q protocol %s", clientModel, reqProtocol)})
-		h.logMeta(reqID, &userKey.ID, clientModel, "", nil, c.Request.Method, path, 404, 0, time.Since(start), "model_not_found", userKey.ImpersonationMode)
+		h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, "", nil, c.Request.Method, path, 404, 0, time.Since(start), "model_not_found", userKey.ImpersonationMode)
 		return
 	}
 
@@ -217,7 +226,7 @@ func (h *Handler) Handle(c *gin.Context) {
 		}
 		writeGatewayError(c, gwError{502, "upstream_error", msg})
 		chID := cand.Channel.ID
-		h.logMeta(reqID, &userKey.ID, clientModel, metaUpstream, &chID, c.Request.Method, path, 502, 0, time.Since(start), msg, userKey.ImpersonationMode)
+		h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, metaUpstream, &chID, c.Request.Method, path, 502, 0, time.Since(start), msg, userKey.ImpersonationMode)
 		h.stats(userKey.ID, true)
 		return
 	}
@@ -259,8 +268,42 @@ func (h *Handler) Handle(c *gin.Context) {
 	if resp.StatusCode >= 400 {
 		errSummary = fmt.Sprintf("upstream status %d", resp.StatusCode)
 	}
-	h.logMeta(reqID, &userKey.ID, clientModel, metaUpstream, &chID, c.Request.Method, path, resp.StatusCode, ttfb.Milliseconds(), time.Since(start), errSummary, userKey.ImpersonationMode)
+	h.logMeta(reqID, userKeyIDPtr(userKey), clientModel, metaUpstream, &chID, c.Request.Method, path, resp.StatusCode, ttfb.Milliseconds(), time.Since(start), errSummary, userKey.ImpersonationMode)
 	h.stats(userKey.ID, resp.StatusCode >= 400)
+}
+
+
+func (h *Handler) handleCaptureOnly(c *gin.Context, reqID, path string) {
+	model := ""
+	// optional peek model from body for non-GET
+	if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead {
+		bodyBytes, err := h.readBody(c)
+		if err == nil && len(bodyBytes) > 0 {
+			if m, _, _, perr := body.PeekTopModel(bodyBytes); perr == nil {
+				model = m
+			}
+		}
+	}
+	captured := false
+	if h.Capture != nil {
+		captured = h.Capture.TryCapture(c.Request, model)
+	}
+	c.Header("X-Request-Id", reqID)
+	c.JSON(200, gin.H{
+		"captured": captured,
+		"message":  "request headers recorded; not proxied",
+		"path":     path,
+		"model":    model,
+	})
+	// no user key stats for capture
+}
+
+func userKeyIDPtr(k *store.UserKey) *int64 {
+	if k == nil || k.ID <= 0 {
+		return nil
+	}
+	id := k.ID
+	return &id
 }
 
 func (h *Handler) authenticate(c *gin.Context, snap *snapshot.Snapshot) (*store.UserKey, error) {
@@ -275,7 +318,22 @@ func (h *Handler) authenticate(c *gin.Context, snap *snapshot.Snapshot) (*store.
 	if key == "" {
 		return nil, gwError{401, "invalid_api_key", "missing api key"}
 	}
-	// also accept bare sk- without Bearer in Authorization already handled
+	// header capture system key (only when capture feature enabled)
+	if h.Capture != nil && h.Capture.IsCaptureKey(key) {
+		if !h.Capture.Enabled() {
+			return nil, gwError{401, "invalid_api_key", "capture key disabled"}
+		}
+		if !h.Capture.Armed() {
+			return nil, gwError{403, "capture_not_armed", "capture key is not armed; re-arm to capture next request"}
+		}
+		return &store.UserKey{
+			ID:                0,
+			Name:              "header-capture",
+			Key:               key,
+			Enabled:           true,
+			ImpersonationMode: "passthrough",
+		}, nil
+	}
 	uk := snap.KeyByValue[key]
 	if uk == nil {
 		return nil, gwError{401, "invalid_api_key", "invalid api key"}
@@ -342,7 +400,7 @@ func (h *Handler) handleModels(c *gin.Context, snap *snapshot.Snapshot, userKey 
 			}
 			c.JSON(200, gin.H{"object": "list", "data": data})
 		}
-		h.logMeta(reqID, &userKey.ID, "", "", nil, c.Request.Method, path, 200, 0, time.Since(start), "", userKey.ImpersonationMode)
+		h.logMeta(reqID, userKeyIDPtr(userKey), "", "", nil, c.Request.Method, path, 200, 0, time.Since(start), "", userKey.ImpersonationMode)
 		h.stats(userKey.ID, false)
 		return
 	}
@@ -358,7 +416,7 @@ func (h *Handler) handleModels(c *gin.Context, snap *snapshot.Snapshot, userKey 
 	}
 	if !found {
 		writeGatewayError(c, gwError{404, "model_not_found", "model not found"})
-		h.logMeta(reqID, &userKey.ID, id, "", nil, c.Request.Method, path, 404, 0, time.Since(start), "model_not_found", userKey.ImpersonationMode)
+		h.logMeta(reqID, userKeyIDPtr(userKey), id, "", nil, c.Request.Method, path, 404, 0, time.Since(start), "model_not_found", userKey.ImpersonationMode)
 		h.stats(userKey.ID, true)
 		return
 	}
@@ -367,7 +425,7 @@ func (h *Handler) handleModels(c *gin.Context, snap *snapshot.Snapshot, userKey 
 	} else {
 		c.JSON(200, gin.H{"id": id, "object": "model", "created": 1626777600, "owned_by": "phonyc"})
 	}
-	h.logMeta(reqID, &userKey.ID, id, "", nil, c.Request.Method, path, 200, 0, time.Since(start), "", userKey.ImpersonationMode)
+	h.logMeta(reqID, userKeyIDPtr(userKey), id, "", nil, c.Request.Method, path, 200, 0, time.Since(start), "", userKey.ImpersonationMode)
 	h.stats(userKey.ID, false)
 }
 
@@ -390,6 +448,9 @@ func (h *Handler) logMeta(reqID string, keyID *int64, clientModel, upstreamModel
 }
 
 func (h *Handler) stats(keyID int64, isErr bool) {
+	if keyID <= 0 {
+		return
+	}
 	day := time.Now().UTC().Format("2006-01-02")
 	go func() { _ = h.Store.IncrKeyStats(keyID, day, isErr) }()
 }

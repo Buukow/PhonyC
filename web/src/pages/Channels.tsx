@@ -8,11 +8,15 @@ type Channel = {
   id: number
   name: string
   enabled: boolean
+  temp_disabled?: boolean
   protocol: string
   base_url: string
   api_key: string
   priority: number
   timeout_ms: number
+  last_test_status?: number
+  last_test_ms?: number
+  last_test_error?: string
 }
 
 export default function Channels() {
@@ -54,7 +58,7 @@ export default function Channels() {
     <div>
       <PageHeader
         title="渠道"
-        subtitle="配置上游协议、Base URL 与优先级"
+        subtitle="配置上游协议、Base URL 与优先级（0 最低，越大越优先；同优先级随机）"
         actions={<Button onClick={() => setShow((v) => !v)}><Plus className="w-4 h-4" />新建渠道</Button>}
       />
       {show && (
@@ -70,7 +74,10 @@ export default function Channels() {
             </div>
             <div className="md:col-span-2"><Label>Base URL</Label><Input placeholder="https://api.example.com" value={form.base_url} onChange={(e) => setForm({ ...form, base_url: e.target.value })} required /></div>
             <div className="md:col-span-2"><Label>上游 API Key</Label><Input value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} /></div>
-            <div><Label>优先级</Label><Input type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })} /></div>
+            <div>
+              <Label>优先级（0 最低默认，数字越大越优先，禁止负数）</Label>
+              <Input type="number" min={0} value={form.priority} onChange={(e) => setForm({ ...form, priority: Math.max(0, Number(e.target.value)) })} />
+            </div>
             <div><Label>超时 (ms)</Label><Input type="number" value={form.timeout_ms} onChange={(e) => setForm({ ...form, timeout_ms: Number(e.target.value) })} /></div>
             <div className="md:col-span-2"><Label>额外 Header JSON</Label><Textarea value={form.extra_headers_json} onChange={(e) => setForm({ ...form, extra_headers_json: e.target.value })} /></div>
             <div className="md:col-span-2 flex gap-2"><Button type="submit">保存</Button><Button type="button" variant="secondary" onClick={() => setShow(false)}>取消</Button></div>
@@ -78,15 +85,23 @@ export default function Channels() {
         </Card>
       )}
       <Card className="p-2">
-        <Table headers={['名称', '协议', '优先级', '状态', 'Base URL', '操作']}>
+        <Table headers={['名称', '协议', '优先级', '状态', '最近测活', 'Base URL', '操作']}>
           {items.map((ch) => (
             <tr key={ch.id} className="border-b border-gray-50 hover:bg-canvas">
               <td className="px-4 py-3"><Link className="text-primary hover:underline font-medium" to={`/channels/${ch.id}`}>{ch.name}</Link></td>
               <td className="px-4 py-3"><Badge tone="muted">{ch.protocol}</Badge></td>
               <td className="px-4 py-3">{ch.priority}</td>
-              <td className="px-4 py-3">{ch.enabled ? <Badge>启用</Badge> : <Badge tone="warn">停用</Badge>}</td>
+              <td className="px-4 py-3 space-x-1">
+                {ch.enabled ? <Badge>启用</Badge> : <Badge tone="warn">停用</Badge>}
+                {ch.temp_disabled ? <Badge tone="warn">测活临时禁用</Badge> : null}
+              </td>
+              <td className="px-4 py-3 text-xs text-gray-500">
+                {ch.last_test_status ? `${ch.last_test_status} · ${ch.last_test_ms || 0}ms` : '—'}
+                {ch.last_test_error ? <div className="text-warn truncate max-w-[10rem]" title={ch.last_test_error}>{ch.last_test_error}</div> : null}
+              </td>
               <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{ch.base_url}</td>
               <td className="px-4 py-3 space-x-2">
+                <Button variant="ghost" onClick={async () => { await api(`/api/channels/${ch.id}/test`, { method: 'POST', body: '{}' }); await load() }}>测活</Button>
                 <Button variant="ghost" onClick={() => toggle(ch)}>{ch.enabled ? '停用' : '启用'}</Button>
                 <Button variant="danger" onClick={() => remove(ch.id)}>删除</Button>
               </td>

@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -8,14 +9,18 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/phonyc/phonyc/internal/capture"
+	"github.com/phonyc/phonyc/internal/healthcheck"
 	"github.com/phonyc/phonyc/internal/snapshot"
 	"github.com/phonyc/phonyc/internal/store"
 )
 
 type API struct {
-	Store *store.Store
-	Auth  *Auth
-	Snap  *snapshot.Manager
+	Store   *store.Store
+	Auth    *Auth
+	Snap    *snapshot.Manager
+	Health  *healthcheck.Worker
+	Capture *capture.Manager
 }
 
 func (a *API) Register(r *gin.Engine) {
@@ -60,6 +65,19 @@ func (a *API) Register(r *gin.Engine) {
 	authz.GET("/dashboard/summary", a.dashboard)
 	authz.GET("/settings", a.getSettings)
 	authz.PATCH("/settings", a.patchSettings)
+
+	// health check / 测活
+	authz.POST("/channels/:id/test", a.testChannel)
+	authz.POST("/healthcheck/run", a.runHealthcheck)
+	authz.GET("/healthcheck/status", a.healthcheckStatus)
+
+	// header capture
+	authz.GET("/capture", a.getCapture)
+	authz.POST("/capture/enable", a.enableCapture)
+	authz.POST("/capture/disable", a.disableCapture)
+	authz.POST("/capture/arm", a.armCapture)
+	authz.POST("/capture/clear", a.clearCapture)
+	authz.POST("/capture/save-preset", a.saveCapturePreset)
 }
 
 func (a *API) reload() {
@@ -195,6 +213,10 @@ func (a *API) createChannel(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "name, protocol(openai|anthropic), base_url required"})
 		return
 	}
+	if in.Priority != nil && *in.Priority < 0 {
+		c.JSON(400, gin.H{"error": "priority must be >= 0 (0 is lowest, higher is preferred)"})
+		return
+	}
 	ch, err := a.Store.CreateChannel(in)
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -223,6 +245,10 @@ func (a *API) updateChannel(c *gin.Context) {
 	}
 	if in.Protocol != "" {
 		in.Protocol = strings.ToLower(in.Protocol)
+	}
+	if in.Priority != nil && *in.Priority < 0 {
+		c.JSON(400, gin.H{"error": "priority must be >= 0 (0 is lowest, higher is preferred)"})
+		return
 	}
 	ch, err := a.Store.UpdateChannel(id, in)
 	if err != nil {
@@ -535,6 +561,175 @@ func atoiDefault(s string, def int) int {
 		return def
 	}
 	return n
+}
+
+
+func (a *API) testChannel(c *gin.Context) {
+	if a.Health == nil {
+		c.JSON(500, gin.H{"error": "healthcheck not available"})
+		return
+	}
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	res, err := a.Health.TestOne(id)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, res)
+}
+
+func (a *API) runHealthcheck(c *gin.Context) {
+	if a.Health == nil {
+		c.JSON(500, gin.H{"error": "healthcheck not available"})
+		return
+	}
+	a.Health.TriggerNow()
+	c.JSON(200, gin.H{"ok": true, "message": "healthcheck triggered"})
+}
+
+func (a *API) healthcheckStatus(c *gin.Context) {
+	if a.Health == nil {
+		c.JSON(200, gin.H{"enabled": false})
+		return
+	}
+	sum := a.Health.LastSummary()
+	c.JSON(200, gin.H{
+		"enabled": a.Store.GetSettingBool(store.SettingAutoTestEnabled, false),
+		"interval_minutes": a.Store.GetSettingInt(store.SettingAutoTestIntervalMin, 10),
+		"random_offset_minutes": a.Store.GetSettingInt(store.SettingAutoTestRandomOffset, 0),
+		"prompt": a.Store.GetSettingOr(store.SettingAutoTestPrompt, "hi"),
+		"model": a.Store.GetSettingOr(store.SettingAutoTestModel, ""),
+		"disable_status_codes": a.Store.GetSettingOr(store.SettingAutoTestDisableCodes, "401,403,404,503"),
+		"last_summary": sum,
+	})
+}
+
+func (a *API) getCapture(c *gin.Context) {
+	if a.Capture == nil {
+		c.JSON(500, gin.H{"error": "capture not available"})
+		return
+	}
+	var captured any
+	if cap, err := a.Capture.GetCaptured(); err == nil {
+		captured = cap
+	}
+	c.JSON(200, gin.H{
+		"enabled": a.Capture.Enabled(),
+		"armed": a.Capture.Armed(),
+		"key": a.Capture.Key(),
+		"captured": captured,
+	})
+}
+
+func (a *API) enableCapture(c *gin.Context) {
+	if a.Capture == nil {
+		c.JSON(500, gin.H{"error": "capture not available"})
+		return
+	}
+	if err := a.Capture.SetEnabled(true); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"ok": true, "enabled": true, "armed": true, "key": a.Capture.Key()})
+}
+
+func (a *API) disableCapture(c *gin.Context) {
+	if a.Capture == nil {
+		c.JSON(500, gin.H{"error": "capture not available"})
+		return
+	}
+	if err := a.Capture.SetEnabled(false); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"ok": true, "enabled": false})
+}
+
+func (a *API) armCapture(c *gin.Context) {
+	if a.Capture == nil {
+		c.JSON(500, gin.H{"error": "capture not available"})
+		return
+	}
+	if !a.Capture.Enabled() {
+		c.JSON(400, gin.H{"error": "capture is disabled"})
+		return
+	}
+	if err := a.Capture.Arm(); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"ok": true, "armed": true})
+}
+
+func (a *API) clearCapture(c *gin.Context) {
+	if a.Capture == nil {
+		c.JSON(500, gin.H{"error": "capture not available"})
+		return
+	}
+	_ = a.Capture.ClearCaptured()
+	c.JSON(200, gin.H{"ok": true})
+}
+
+func (a *API) saveCapturePreset(c *gin.Context) {
+	if a.Capture == nil {
+		c.JSON(500, gin.H{"error": "capture not available"})
+		return
+	}
+	cap, err := a.Capture.GetCaptured()
+	if err != nil {
+		c.JSON(400, gin.H{"error": "no captured request"})
+		return
+	}
+	var req struct {
+		Name         string `json:"name"`
+		VersionLabel string `json:"version_label"`
+		Description  string `json:"description"`
+		Overwrite    bool   `json:"overwrite"`
+	}
+	_ = c.BindJSON(&req)
+	if strings.TrimSpace(req.Name) == "" {
+		req.Name = "captured-" + time.Now().Format("20060102-1504")
+	}
+	if req.Description == "" {
+		req.Description = "从请求捕获保存的客户端指纹"
+	}
+	hj, _ := json.Marshal(cap.Headers)
+	if req.VersionLabel == "" {
+		if ua, ok := cap.Headers["User-Agent"]; ok {
+			req.VersionLabel = ua
+			if len(req.VersionLabel) > 64 {
+				req.VersionLabel = req.VersionLabel[:64]
+			}
+		}
+	}
+	// overwrite existing by name when requested (3.4B)
+	if existing, err := a.Store.GetPresetByName(req.Name); err == nil {
+		if !req.Overwrite {
+			c.JSON(409, gin.H{"error": "preset name exists; set overwrite=true to replace", "id": existing.ID})
+			return
+		}
+		p, err := a.Store.UpdatePreset(existing.ID, store.PresetInput{
+			Name: req.Name, Description: req.Description, VersionLabel: req.VersionLabel,
+			HeadersJSON: string(hj), RemoveHeaders: "[]",
+		})
+		if err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+		a.reload()
+		c.JSON(200, p)
+		return
+	}
+	p, err := a.Store.CreatePreset(store.PresetInput{
+		Name: req.Name, Description: req.Description, VersionLabel: req.VersionLabel,
+		HeadersJSON: string(hj), RemoveHeaders: "[]",
+	})
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	a.reload()
+	c.JSON(200, p)
 }
 
 var _ = http.StatusOK

@@ -52,12 +52,18 @@ CREATE TABLE IF NOT EXISTS channels (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   enabled INTEGER NOT NULL DEFAULT 1,
+  temp_disabled INTEGER NOT NULL DEFAULT 0,
   protocol TEXT NOT NULL,
   base_url TEXT NOT NULL,
   api_key TEXT NOT NULL DEFAULT '',
   priority INTEGER NOT NULL DEFAULT 0,
   extra_headers_json TEXT NOT NULL DEFAULT '{}',
   timeout_ms INTEGER NOT NULL DEFAULT 600000,
+  test_model TEXT NOT NULL DEFAULT '',
+  last_test_at TEXT NOT NULL DEFAULT '',
+  last_test_status INTEGER NOT NULL DEFAULT 0,
+  last_test_ms INTEGER NOT NULL DEFAULT 0,
+  last_test_error TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -134,6 +140,18 @@ CREATE TABLE IF NOT EXISTS app_settings (
 `
 	if _, err := s.db.Exec(schema); err != nil {
 		return err
+	}
+	// additive migrations for existing DBs
+	alters := []string{
+		`ALTER TABLE channels ADD COLUMN temp_disabled INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE channels ADD COLUMN test_model TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE channels ADD COLUMN last_test_at TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE channels ADD COLUMN last_test_status INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE channels ADD COLUMN last_test_ms INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE channels ADD COLUMN last_test_error TEXT NOT NULL DEFAULT ''`,
+	}
+	for _, q := range alters {
+		_, _ = s.db.Exec(q) // ignore duplicate column errors
 	}
 	return nil
 }

@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, Radio, KeyRound, Fingerprint, ScrollText, Settings, Menu, LogOut, ChevronLeft
+  LayoutDashboard, Radio, KeyRound, Fingerprint, ScrollText, Settings, Menu, LogOut, ChevronLeft, Crosshair, Activity
 } from 'lucide-react'
 import { useState } from 'react'
 import { clearToken } from '@/lib/api'
@@ -12,6 +12,7 @@ const nav = [
   { to: '/channels', label: '渠道', icon: Radio },
   { to: '/keys', label: '用户 Key', icon: KeyRound },
   { to: '/presets', label: '客户端预设', icon: Fingerprint },
+  { to: '/capture', label: '请求捕获', icon: Crosshair },
   { to: '/logs', label: '请求日志', icon: ScrollText },
   { to: '/settings', label: '设置', icon: Settings },
 ]
@@ -68,7 +69,10 @@ export default function Layout() {
       </aside>
       <div className={cn('transition-all duration-300', open ? 'ml-60' : 'ml-16')}>
         <header className="sticky top-0 z-20 h-14 flex items-center px-6 md:px-8 bg-canvas/80 backdrop-blur-md border-b border-gray-200/50">
-          <div className="text-sm text-gray-400">AI API 轻量中转网关</div>
+          <div className="text-sm text-gray-400 flex items-center gap-2">
+            <Activity className="w-4 h-4" />
+            AI API 轻量中转网关
+          </div>
         </header>
         <main className="p-6 md:p-8">
           <Outlet />

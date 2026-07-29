@@ -11,6 +11,7 @@ import Keys from '@/pages/Keys'
 import Presets from '@/pages/Presets'
 import Logs from '@/pages/Logs'
 import SettingsPage from '@/pages/Settings'
+import CapturePage from '@/pages/Capture'
 
 function Guard({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<'loading' | 'setup' | 'login' | 'ok'>('loading')
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="keys" element={<Keys />} />
         <Route path="presets" element={<Presets />} />
         <Route path="logs" element={<Logs />} />
+        <Route path="capture" element={<CapturePage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
