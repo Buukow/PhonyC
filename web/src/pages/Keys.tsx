@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { Eye, EyeOff, Copy } from 'lucide-react'
 import { api } from '@/lib/api'
+import { copyText } from '@/lib/clipboard'
 import { Badge, Button, Card, Input, Label, PageHeader, Select, Table, Textarea } from '@/components/ui'
 
 type Key = {
@@ -40,6 +41,7 @@ export default function Keys() {
   const [reveal, setReveal] = useState<Record<number, boolean>>({})
   const [form, setForm] = useState<KeyForm>(emptyForm())
   const [err, setErr] = useState('')
+  const [copyMsg, setCopyMsg] = useState('')
 
   async function load() {
     const [k, p] = await Promise.all([
@@ -134,6 +136,7 @@ export default function Keys() {
         subtitle="分发客户端凭证并绑定伪装策略"
         actions={<Button onClick={startCreate}>新建 Key</Button>}
       />
+      {copyMsg && <div className="mb-4 text-sm text-primary">{copyMsg}</div>}
       {err && <div className="mb-4 text-sm text-warn">{err}</div>}
       {formOpen && (
         <Card className="p-6 mb-6">
@@ -187,7 +190,15 @@ export default function Keys() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => navigator.clipboard?.writeText(k.key)}
+                    onClick={async () => {
+                      try {
+                        await copyText(k.key)
+                        setCopyMsg(`已复制 ${k.name} 的 Key`)
+                        setTimeout(() => setCopyMsg(''), 2000)
+                      } catch (ex: any) {
+                        setErr(ex.message || '复制失败')
+                      }
+                    }}
                     className="text-gray-400 hover:text-primary"
                     title="复制"
                   >

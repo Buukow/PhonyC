@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Copy, Crosshair, RefreshCw, Save } from 'lucide-react'
 import { api } from '@/lib/api'
+import { copyText } from '@/lib/clipboard'
 import { Badge, Button, Card, Input, Label, PageHeader, Table } from '@/components/ui'
 
 type CaptureState = {
@@ -111,7 +112,19 @@ export default function CapturePage() {
             <Label>系统固定 API Key</Label>
             <div className="flex gap-2 items-center">
               <Input readOnly value={data?.key || ''} className="font-mono text-xs" />
-              <Button variant="secondary" onClick={() => data?.key && navigator.clipboard.writeText(data.key)}>
+              <Button
+                variant="secondary"
+                onClick={async () => {
+                  if (!data?.key) return
+                  try {
+                    await copyText(data.key)
+                    setMsg('API Key 已复制')
+                    setErr('')
+                  } catch (e: any) {
+                    setErr(e.message || '复制失败')
+                  }
+                }}
+              >
                 <Copy className="w-4 h-4" />
               </Button>
             </div>
