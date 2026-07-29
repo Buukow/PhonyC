@@ -1,13 +1,13 @@
 # local secrets/captures
 relay-*.log
 *.log
-data/
-dist/
+/data/
+web/dist/
+/dist/
 node_modules/
 .env
 .env.*
-web/dist/
-bin/
+/bin/
 *.exe
 *.test
 .DS_Store
