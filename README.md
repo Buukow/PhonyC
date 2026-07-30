@@ -93,11 +93,11 @@ Service is managed by systemd unit `phonyg.service` with `Restart=always`.
 ## Docker
 
 ```bash
-docker pull ghcr.io/buukow/phonyg:1.1
+docker pull ghcr.io/buukow/phonyg:1.2
 docker run -d --name phonyg \
   -p 8080:8080 \
   -v phonyg-data:/data \
-  ghcr.io/buukow/phonyg:1.1
+  ghcr.io/buukow/phonyg:1.2
 ```
 
-镜像由 GitHub Actions 构建（`linux/amd64`），版本标签：`1.1`。
+镜像由 GitHub Actions 构建（`linux/amd64`），版本标签：`1.2`。
