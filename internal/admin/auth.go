@@ -12,14 +12,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/phonyc/phonyc/internal/store"
+	"github.com/phonyg/phonyg/internal/store"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type Auth struct {
-	Store     *store.Store
-	Secret    []byte
-	TTLHours  int
+	Store    *store.Store
+	Secret   []byte
+	TTLHours int
 }
 
 type claims struct {

@@ -75,7 +75,7 @@ The existing setting `auto_test_disable_status_codes`, parsed through `store.Par
 
 The release version is 1.1. The workflow publishes `1.1`, `latest`, the Git tag-derived `v1.1`, and the commit SHA tag for linux/amd64. Documentation is updated accordingly.
 
-After pushing `main` and tag `v1.1`, poll GitHub Actions once per minute. When the matching image build succeeds, obtain the published image digest from the workflow or registry. Pull through the Nanjing University mirror, preferring `ghcr.nju.edu.cn/ghcr.io/buukow/phonyc:1.1` and trying the mirror’s alternate path form if necessary, and verify the pulled image digest matches the published digest. Deployment uses the verified digest rather than a mutable tag.
+After pushing `main` and tag `v1.1`, poll GitHub Actions once per minute. When the matching image build succeeds, obtain the published image digest from the workflow or registry. Pull through the Nanjing University mirror, preferring `ghcr.nju.edu.cn/ghcr.io/buukow/phonyg:1.1` and trying the mirror’s alternate path form if necessary, and verify the pulled image digest matches the published digest. Deployment uses the verified digest rather than a mutable tag.
 
 Before replacement, identify the container publishing host port 23346 and securely save its complete `docker inspect` result, exact old image digest, and applicable recreation configuration. Prefer its existing Compose or service definition if present, changing only the image. Otherwise reproduce all applicable container and host settings, including name, mounts, environment, ports, restart policy, networks and aliases, command/entrypoint, labels, user, working directory, healthcheck, logging, DNS/hosts, capabilities, and devices.
 

@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/phonyc/phonyc/internal/protocol"
-	"github.com/phonyc/phonyc/internal/snapshot"
-	"github.com/phonyc/phonyc/internal/store"
-	"github.com/phonyc/phonyc/internal/usage"
+	"github.com/phonyg/phonyg/internal/protocol"
+	"github.com/phonyg/phonyg/internal/snapshot"
+	"github.com/phonyg/phonyg/internal/store"
+	"github.com/phonyg/phonyg/internal/usage"
 )
 
 type Worker struct {

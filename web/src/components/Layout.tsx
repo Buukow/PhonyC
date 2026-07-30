@@ -30,7 +30,7 @@ export default function Layout() {
       >
         <div className="h-14 flex items-center gap-2 px-4 border-b border-gray-200/50">
           <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-semibold">P</div>
-          {open && <div className="font-semibold text-gray-800 tracking-tight">PhonyC</div>}
+          {open && <div className="font-semibold text-gray-800 tracking-tight">PhonyG</div>}
           <button className="ml-auto text-gray-400 hover:text-gray-700" onClick={() => setOpen((v) => !v)}>
             {open ? <ChevronLeft className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </button>

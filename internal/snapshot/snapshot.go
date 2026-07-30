@@ -4,7 +4,7 @@ import (
 	"sort"
 	"sync/atomic"
 
-	"github.com/phonyc/phonyc/internal/store"
+	"github.com/phonyg/phonyg/internal/store"
 )
 
 type Snapshot struct {
@@ -14,10 +14,10 @@ type Snapshot struct {
 	UserKeys      []store.UserKey
 	Presets       []store.ClientPreset
 	// indexes
-	KeyByValue map[string]*store.UserKey
-	ChannelByID map[int64]*store.Channel
+	KeyByValue      map[string]*store.UserKey
+	ChannelByID     map[int64]*store.Channel
 	ModelsByChannel map[int64][]store.ChannelModel
-	PresetByID map[int64]*store.ClientPreset
+	PresetByID      map[int64]*store.ClientPreset
 	// client_model -> candidates
 	// filtered at route time by protocol
 	ModelsByClient map[string][]ModelCandidate

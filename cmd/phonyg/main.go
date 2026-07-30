@@ -9,15 +9,15 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/phonyc/phonyc/internal/admin"
-	"github.com/phonyc/phonyc/internal/capture"
-	"github.com/phonyc/phonyc/internal/config"
-	"github.com/phonyc/phonyc/internal/healthcheck"
-	"github.com/phonyc/phonyc/internal/proxy"
-	"github.com/phonyc/phonyc/internal/seed"
-	"github.com/phonyc/phonyc/internal/snapshot"
-	"github.com/phonyc/phonyc/internal/store"
-	"github.com/phonyc/phonyc/internal/webembed"
+	"github.com/phonyg/phonyg/internal/admin"
+	"github.com/phonyg/phonyg/internal/capture"
+	"github.com/phonyg/phonyg/internal/config"
+	"github.com/phonyg/phonyg/internal/healthcheck"
+	"github.com/phonyg/phonyg/internal/proxy"
+	"github.com/phonyg/phonyg/internal/seed"
+	"github.com/phonyg/phonyg/internal/snapshot"
+	"github.com/phonyg/phonyg/internal/store"
+	"github.com/phonyg/phonyg/internal/webembed"
 )
 
 func main() {
@@ -85,11 +85,11 @@ func main() {
 		})
 	} else {
 		r.GET("/", func(c *gin.Context) {
-			c.String(200, "PhonyC API is running. Frontend not embedded yet.")
+			c.String(200, "PhonyG API is running. Frontend not embedded yet.")
 		})
 	}
 
-	log.Printf("PhonyC listening on %s (data=%s)", cfg.Addr, cfg.DataDir)
+	log.Printf("PhonyG listening on %s (data=%s)", cfg.Addr, cfg.DataDir)
 	if err := r.Run(cfg.Addr); err != nil {
 		log.Fatal(err)
 	}

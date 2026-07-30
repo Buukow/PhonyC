@@ -11,10 +11,10 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/phonyc/phonyc/internal/capture"
-	"github.com/phonyc/phonyc/internal/seed"
-	"github.com/phonyc/phonyc/internal/snapshot"
-	"github.com/phonyc/phonyc/internal/store"
+	"github.com/phonyg/phonyg/internal/capture"
+	"github.com/phonyg/phonyg/internal/seed"
+	"github.com/phonyg/phonyg/internal/snapshot"
+	"github.com/phonyg/phonyg/internal/store"
 )
 
 func setupTest(t *testing.T) (*Handler, *store.Store, *snapshot.Manager, string) {

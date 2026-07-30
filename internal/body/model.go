@@ -179,7 +179,7 @@ func RewriteTopModel(body []byte, upstream string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := make([]byte, 0, len(body)- (end-start) + len(raw))
+	out := make([]byte, 0, len(body)-(end-start)+len(raw))
 	out = append(out, body[:start]...)
 	out = append(out, raw...)
 	out = append(out, body[end:]...)

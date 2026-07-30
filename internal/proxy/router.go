@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"sort"
 
-	"github.com/phonyc/phonyc/internal/snapshot"
+	"github.com/phonyg/phonyg/internal/snapshot"
 )
 
 type RouteResult struct {

@@ -1,4 +1,4 @@
-const TOKEN_KEY = 'phonyc_token'
+const TOKEN_KEY = 'phonyg_token'
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY) || ''

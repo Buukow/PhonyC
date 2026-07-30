@@ -70,17 +70,17 @@ func StatusCodeListContains(codes []int, code int) bool {
 
 // Setting keys
 const (
-	SettingAutoTestEnabled       = "auto_test_enabled"
-	SettingAutoTestIntervalMin   = "auto_test_interval_minutes"
-	SettingAutoTestRandomOffset  = "auto_test_random_offset_minutes"
-	SettingAutoTestPrompt        = "auto_test_prompt"
-	SettingAutoTestModel         = "auto_test_model"
-	SettingAutoTestDisableCodes  = "auto_test_disable_status_codes"
-	SettingHeaderCaptureEnabled  = "header_capture_enabled"
-	SettingHeaderCaptureKey      = "header_capture_key"
-	SettingHeaderCaptureArmed    = "header_capture_armed" // "1" waiting for first request
-	SettingHeaderCapturePayload  = "header_capture_payload"
-	SettingAutoRetryEnabled      = "auto_retry_enabled"
-	SettingAutoRetryMax          = "auto_retry_max"
-	SettingAutoRetryStatusCodes  = "auto_retry_status_codes"
+	SettingAutoTestEnabled      = "auto_test_enabled"
+	SettingAutoTestIntervalMin  = "auto_test_interval_minutes"
+	SettingAutoTestRandomOffset = "auto_test_random_offset_minutes"
+	SettingAutoTestPrompt       = "auto_test_prompt"
+	SettingAutoTestModel        = "auto_test_model"
+	SettingAutoTestDisableCodes = "auto_test_disable_status_codes"
+	SettingHeaderCaptureEnabled = "header_capture_enabled"
+	SettingHeaderCaptureKey     = "header_capture_key"
+	SettingHeaderCaptureArmed   = "header_capture_armed" // "1" waiting for first request
+	SettingHeaderCapturePayload = "header_capture_payload"
+	SettingAutoRetryEnabled     = "auto_retry_enabled"
+	SettingAutoRetryMax         = "auto_retry_max"
+	SettingAutoRetryStatusCodes = "auto_retry_status_codes"
 )

@@ -17,11 +17,11 @@ type Config struct {
 
 func Load() Config {
 	cfg := Config{
-		Addr:         envOr("PHONYC_ADDR", ":8080"),
-		DataDir:      envOr("PHONYC_DATA_DIR", "./data"),
-		JWTSecret:    strings.TrimSpace(os.Getenv("PHONYC_JWT_SECRET")),
-		MaxBodyBytes: envInt64("PHONYC_MAX_BODY_BYTES", 64<<20),
-		JWTTTLHours:  envInt("PHONYC_JWT_TTL_HOURS", 24),
+		Addr:         envOr("PHONYG_ADDR", ":8080"),
+		DataDir:      envOr("PHONYG_DATA_DIR", "./data"),
+		JWTSecret:    strings.TrimSpace(os.Getenv("PHONYG_JWT_SECRET")),
+		MaxBodyBytes: envInt64("PHONYG_MAX_BODY_BYTES", 64<<20),
+		JWTTTLHours:  envInt("PHONYG_JWT_TTL_HOURS", 24),
 	}
 	if cfg.JWTTTLHours <= 0 {
 		cfg.JWTTTLHours = 24
@@ -33,7 +33,7 @@ func Load() Config {
 }
 
 func (c Config) DBPath() string {
-	return filepath.Join(c.DataDir, "phonyc.db")
+	return filepath.Join(c.DataDir, "phonyg.db")
 }
 
 func (c Config) JWTSecretPath() string {

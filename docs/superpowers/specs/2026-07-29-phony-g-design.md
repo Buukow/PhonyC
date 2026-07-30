@@ -1,9 +1,9 @@
-# PhonyC — AI API 轻量中转网关 MVP 需求与设计
+# PhonyG — AI API 轻量中转网关 MVP 需求与设计
 
 - **日期**: 2026-07-29
 - **状态**: 已评审（brainstorming §1–§5 用户确认）
 - **实现取向**: 方案 2 — 配置驱动插件式渠道
-- **仓库**: PhonyC
+- **仓库**: PhonyG
 - **视觉**: `STYLEKIT_STYLE_REFERENCE_warm-sage-admin.md`（暖米青绿后台）
 
 ---
@@ -12,7 +12,7 @@
 
 ### 1.1 一句话
 
-PhonyC 是一个用 Go 实现的**轻量 AI API 中转网关**：第三方客户端先打到本服务，本服务在 **HTTP 层修改/重组 Header**，将 **Body 以原始字节穿透** 到上游（官方 API 或其它聚合中转），并提供单机管理台维护渠道、模型映射、用户 Key 与客户端伪装预设。
+PhonyG 是一个用 Go 实现的**轻量 AI API 中转网关**：第三方客户端先打到本服务，本服务在 **HTTP 层修改/重组 Header**，将 **Body 以原始字节穿透** 到上游（官方 API 或其它聚合中转），并提供单机管理台维护渠道、模型映射、用户 Key 与客户端伪装预设。
 
 ### 1.2 核心设计原则
 
@@ -90,7 +90,7 @@ PhonyC 是一个用 Go 实现的**轻量 AI API 中转网关**：第三方客户
         │  Authorization: Bearer <user_api_key>
         ▼
 ┌──────────────────────────────────────────────┐
-│  PhonyC 单二进制                              │
+│  PhonyG 单二进制                              │
 │  Gin                                          │
 │  /          → 管理前端 dist                    │
 │  /api/*     → 管理 REST (管理员 JWT)           │
@@ -360,10 +360,10 @@ POST /v1/... + Bearer user_key
 
 | 变量 | 含义 |
 |------|------|
-| `PHONYC_ADDR` | 监听地址，如 `:8080` |
-| `PHONYC_DATA_DIR` | 数据目录（SQLite 等） |
-| `PHONYC_JWT_SECRET` | 可缺省：首次自动生成并持久化到 data |
-| `PHONYC_MAX_BODY_BYTES` | 请求体上限 |
+| `PHONYG_ADDR` | 监听地址，如 `:8080` |
+| `PHONYG_DATA_DIR` | 数据目录（SQLite 等） |
+| `PHONYG_JWT_SECRET` | 可缺省：首次自动生成并持久化到 data |
+| `PHONYG_MAX_BODY_BYTES` | 请求体上限 |
 
 产物：单二进制 + `data/`；可选 Docker 挂卷。
 

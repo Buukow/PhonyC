@@ -16,12 +16,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/phonyc/phonyc/internal/body"
-	"github.com/phonyc/phonyc/internal/capture"
-	"github.com/phonyc/phonyc/internal/protocol"
-	"github.com/phonyc/phonyc/internal/snapshot"
-	"github.com/phonyc/phonyc/internal/store"
-	"github.com/phonyc/phonyc/internal/usage"
+	"github.com/phonyg/phonyg/internal/body"
+	"github.com/phonyg/phonyg/internal/capture"
+	"github.com/phonyg/phonyg/internal/protocol"
+	"github.com/phonyg/phonyg/internal/snapshot"
+	"github.com/phonyg/phonyg/internal/store"
+	"github.com/phonyg/phonyg/internal/usage"
 )
 
 type Handler struct {
@@ -368,15 +368,15 @@ func (h *Handler) handleCaptureOnly(c *gin.Context, reqID, path string) {
 		}
 	}
 	if model == "" {
-		model = "phonyc-capture"
+		model = "phonyg-capture"
 	}
 	captured := false
 	if h.Capture != nil {
 		captured = h.Capture.TryCapture(c.Request, model)
 	}
-	msg := "【PhonyC 请求捕获】捕获成功：已记录客户端请求头，未转发上游。可在管理台「请求捕获」查看并一键保存为预设。"
+	msg := "【PhonyG 请求捕获】捕获成功：已记录客户端请求头，未转发上游。可在管理台「请求捕获」查看并一键保存为预设。"
 	if !captured {
-		msg = "【PhonyC 请求捕获】当前未布防或未捕获到新请求（可能已捕获过）。请在管理台重新布防后再试。请求仍返回成功，未转发上游。"
+		msg = "【PhonyG 请求捕获】当前未布防或未捕获到新请求（可能已捕获过）。请在管理台重新布防后再试。请求仍返回成功，未转发上游。"
 	}
 	c.Header("X-Request-Id", reqID)
 	writeCaptureClientSuccess(c, path, model, msg, bodyBytes, captured)
@@ -411,13 +411,13 @@ func writeCaptureClientSuccess(c *gin.Context, path, model, msg string, bodyByte
 			c.JSON(200, gin.H{
 				"object": "list",
 				"data": []gin.H{{
-					"id": model, "object": "model", "created": now, "owned_by": "phonyc-capture",
-					"captured": captured, "phonyc_message": msg,
+					"id": model, "object": "model", "created": now, "owned_by": "phonyg-capture",
+					"captured": captured, "phonyg_message": msg,
 				}},
 			})
 			return
 		}
-		c.JSON(200, gin.H{"id": model, "object": "model", "created": now, "owned_by": "phonyc-capture", "captured": captured, "phonyc_message": msg})
+		c.JSON(200, gin.H{"id": model, "object": "model", "created": now, "owned_by": "phonyg-capture", "captured": captured, "phonyg_message": msg})
 		return
 
 	case path == "/v1/messages":
@@ -426,10 +426,10 @@ func writeCaptureClientSuccess(c *gin.Context, path, model, msg string, bodyByte
 			return
 		}
 		c.JSON(200, gin.H{
-			"id": "msg_phonyc_capture", "type": "message", "role": "assistant", "model": model,
-			"content": []gin.H{{"type": "text", "text": msg}},
+			"id": "msg_phonyg_capture", "type": "message", "role": "assistant", "model": model,
+			"content":     []gin.H{{"type": "text", "text": msg}},
 			"stop_reason": "end_turn", "stop_sequence": nil,
-			"usage": gin.H{"input_tokens": 0, "output_tokens": 0},
+			"usage":    gin.H{"input_tokens": 0, "output_tokens": 0},
 			"captured": captured,
 		})
 		return
@@ -440,13 +440,13 @@ func writeCaptureClientSuccess(c *gin.Context, path, model, msg string, bodyByte
 			return
 		}
 		c.JSON(200, gin.H{
-			"id": "resp_phonyc_capture", "object": "response", "created_at": now, "status": "completed",
+			"id": "resp_phonyg_capture", "object": "response", "created_at": now, "status": "completed",
 			"model": model, "output_text": msg,
 			"output": []gin.H{{
-				"type": "message", "id": "msg_phonyc_capture", "role": "assistant",
+				"type": "message", "id": "msg_phonyg_capture", "role": "assistant",
 				"content": []gin.H{{"type": "output_text", "text": msg}},
 			}},
-			"usage": gin.H{"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+			"usage":    gin.H{"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
 			"captured": captured,
 		})
 		return
@@ -458,13 +458,13 @@ func writeCaptureClientSuccess(c *gin.Context, path, model, msg string, bodyByte
 			return
 		}
 		c.JSON(200, gin.H{
-			"id": "chatcmpl-phonyc-capture", "object": "chat.completion", "created": now, "model": model,
+			"id": "chatcmpl-phonyg-capture", "object": "chat.completion", "created": now, "model": model,
 			"choices": []gin.H{{
-				"index": 0,
-				"message": gin.H{"role": "assistant", "content": msg},
+				"index":         0,
+				"message":       gin.H{"role": "assistant", "content": msg},
 				"finish_reason": "stop",
 			}},
-			"usage": gin.H{"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+			"usage":    gin.H{"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
 			"captured": captured,
 		})
 	}
@@ -486,12 +486,12 @@ func writeCaptureChatStream(c *gin.Context, model, msg string, captured bool) {
 		}
 	}
 	writeSSE(gin.H{
-		"id": "chatcmpl-phonyc-capture", "object": "chat.completion.chunk", "created": time.Now().Unix(), "model": model,
-		"choices": []gin.H{{"index": 0, "delta": gin.H{"role": "assistant", "content": msg}, "finish_reason": nil}},
+		"id": "chatcmpl-phonyg-capture", "object": "chat.completion.chunk", "created": time.Now().Unix(), "model": model,
+		"choices":  []gin.H{{"index": 0, "delta": gin.H{"role": "assistant", "content": msg}, "finish_reason": nil}},
 		"captured": captured,
 	})
 	writeSSE(gin.H{
-		"id": "chatcmpl-phonyc-capture", "object": "chat.completion.chunk", "created": time.Now().Unix(), "model": model,
+		"id": "chatcmpl-phonyg-capture", "object": "chat.completion.chunk", "created": time.Now().Unix(), "model": model,
 		"choices": []gin.H{{"index": 0, "delta": gin.H{}, "finish_reason": "stop"}},
 	})
 	_, _ = c.Writer.Write([]byte("data: [DONE]\n\n"))
@@ -516,7 +516,7 @@ func writeCaptureAnthropicStream(c *gin.Context, model, msg string, captured boo
 	writeEvent("message_start", gin.H{
 		"type": "message_start",
 		"message": gin.H{
-			"id": "msg_phonyc_capture", "type": "message", "role": "assistant", "model": model,
+			"id": "msg_phonyg_capture", "type": "message", "role": "assistant", "model": model,
 			"content": []any{}, "stop_reason": nil, "usage": gin.H{"input_tokens": 0, "output_tokens": 0},
 		},
 	})
@@ -542,12 +542,12 @@ func writeCaptureResponsesStream(c *gin.Context, model, msg string, captured boo
 			flusher.Flush()
 		}
 	}
-	writeSSE(gin.H{"type": "response.created", "response": gin.H{"id": "resp_phonyc_capture", "object": "response", "status": "in_progress", "model": model}})
+	writeSSE(gin.H{"type": "response.created", "response": gin.H{"id": "resp_phonyg_capture", "object": "response", "status": "in_progress", "model": model}})
 	writeSSE(gin.H{"type": "response.output_text.delta", "delta": msg})
 	writeSSE(gin.H{
 		"type": "response.completed",
 		"response": gin.H{
-			"id": "resp_phonyc_capture", "object": "response", "status": "completed", "model": model,
+			"id": "resp_phonyg_capture", "object": "response", "status": "completed", "model": model,
 			"output_text": msg, "captured": captured,
 			"output": []gin.H{{"type": "message", "role": "assistant", "content": []gin.H{{"type": "output_text", "text": msg}}}},
 		},
@@ -651,7 +651,7 @@ func (h *Handler) handleModels(c *gin.Context, snap *snapshot.Snapshot, userKey 
 			data := make([]gin.H, 0, len(models))
 			for _, id := range models {
 				data = append(data, gin.H{
-					"id": id, "object": "model", "created": 1626777600, "owned_by": "phonyc",
+					"id": id, "object": "model", "created": 1626777600, "owned_by": "phonyg",
 				})
 			}
 			c.JSON(200, gin.H{"object": "list", "data": data})
@@ -679,7 +679,7 @@ func (h *Handler) handleModels(c *gin.Context, snap *snapshot.Snapshot, userKey 
 	if anthropicStyle {
 		c.JSON(200, gin.H{"type": "model", "id": id, "display_name": id, "created_at": "2021-07-20T00:00:00Z"})
 	} else {
-		c.JSON(200, gin.H{"id": id, "object": "model", "created": 1626777600, "owned_by": "phonyc"})
+		c.JSON(200, gin.H{"id": id, "object": "model", "created": 1626777600, "owned_by": "phonyg"})
 	}
 	h.logMeta(reqID, userKeyIDPtr(userKey), id, "", nil, c.Request.Method, path, 200, 0, time.Since(start), "", userKey.ImpersonationMode, usage.Tokens{})
 	h.stats(userKey.ID, false)

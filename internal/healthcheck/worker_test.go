@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/phonyc/phonyc/internal/snapshot"
-	"github.com/phonyc/phonyc/internal/store"
+	"github.com/phonyg/phonyg/internal/snapshot"
+	"github.com/phonyg/phonyg/internal/store"
 )
 
 func healthTestWorker(t *testing.T, status *int) (*Worker, *store.Store, int64) {

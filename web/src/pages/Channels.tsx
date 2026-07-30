@@ -162,7 +162,7 @@ export default function Channels() {
       <PageHeader
         title="渠道"
         subtitle="配置上游协议、Base URL、模型映射与优先级"
-        actions={<Button onClick={startCreate}><Plus className="w-4 h-4" />新建渠道</Button>}
+        actions={formOpen ? undefined : <Button onClick={startCreate}><Plus className="w-4 h-4" />新建渠道</Button>}
       />
       {err && <div className="mb-4 text-sm text-warn">{err}</div>}
       {formOpen && (

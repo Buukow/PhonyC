@@ -1,4 +1,4 @@
-module github.com/phonyc/phonyc
+module github.com/phonyg/phonyg
 
 go 1.25.0
 

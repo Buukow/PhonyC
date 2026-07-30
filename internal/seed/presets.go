@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
-	"github.com/phonyc/phonyc/internal/store"
+	"github.com/phonyg/phonyg/internal/store"
 )
 
 func EnsureBuiltinPresets(st *store.Store) error {
@@ -47,16 +47,16 @@ func EnsureBuiltinPresets(st *store.Store) error {
 		return err
 	}
 	defaults := map[string]string{
-		"log_retention_days":               "30",
-		store.SettingAutoTestEnabled:       "false",
-		store.SettingAutoTestIntervalMin:   "10",
-		store.SettingAutoTestRandomOffset:  "0",
-		store.SettingAutoTestPrompt:        "hi",
-		store.SettingAutoTestModel:         "",
-		store.SettingAutoTestDisableCodes:  "401,403,404,503",
-		store.SettingHeaderCaptureEnabled:  "false",
-		store.SettingHeaderCaptureArmed:    "false",
-		store.SettingHeaderCapturePayload:  "",
+		"log_retention_days":              "30",
+		store.SettingAutoTestEnabled:      "false",
+		store.SettingAutoTestIntervalMin:  "10",
+		store.SettingAutoTestRandomOffset: "0",
+		store.SettingAutoTestPrompt:       "hi",
+		store.SettingAutoTestModel:        "",
+		store.SettingAutoTestDisableCodes: "401,403,404,503",
+		store.SettingHeaderCaptureEnabled: "false",
+		store.SettingHeaderCaptureArmed:   "false",
+		store.SettingHeaderCapturePayload: "",
 	}
 	for k, v := range defaults {
 		if _, err := st.GetSetting(k); err != nil {
@@ -64,7 +64,7 @@ func EnsureBuiltinPresets(st *store.Store) error {
 		}
 	}
 	if key, err := st.GetSetting(store.SettingHeaderCaptureKey); err != nil || key == "" {
-		_ = st.SetSetting(store.SettingHeaderCaptureKey, "sk-phonyc-capture-"+randomHex(12))
+		_ = st.SetSetting(store.SettingHeaderCaptureKey, "sk-phonyg-capture-"+randomHex(12))
 	}
 	return nil
 }

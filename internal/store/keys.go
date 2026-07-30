@@ -73,14 +73,14 @@ func scanUserKeyRows(rows *sql.Rows) (*UserKey, error) {
 }
 
 type UserKeyInput struct {
-	Name              string `json:"name"`
-	Key               string `json:"key"`
-	Enabled           *bool  `json:"enabled"`
+	Name              string  `json:"name"`
+	Key               string  `json:"key"`
+	Enabled           *bool   `json:"enabled"`
 	Remark            *string `json:"remark"`
-	ImpersonationMode string `json:"impersonation_mode"`
-	PresetID          *int64 `json:"preset_id"`
-	ClearPreset       bool   `json:"clear_preset"`
-	CustomHeadersJSON string `json:"custom_headers_json"`
+	ImpersonationMode string  `json:"impersonation_mode"`
+	PresetID          *int64  `json:"preset_id"`
+	ClearPreset       bool    `json:"clear_preset"`
+	CustomHeadersJSON string  `json:"custom_headers_json"`
 }
 
 func (s *Store) CreateUserKey(in UserKeyInput) (*UserKey, error) {

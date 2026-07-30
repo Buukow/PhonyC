@@ -417,4 +417,3 @@ func (s *Store) ListSettings() (map[string]string, error) {
 	}
 	return out, rows.Err()
 }
-

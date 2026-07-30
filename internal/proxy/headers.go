@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/phonyc/phonyc/internal/protocol"
-	"github.com/phonyc/phonyc/internal/snapshot"
-	"github.com/phonyc/phonyc/internal/store"
+	"github.com/phonyg/phonyg/internal/protocol"
+	"github.com/phonyg/phonyg/internal/snapshot"
+	"github.com/phonyg/phonyg/internal/store"
 )
 
 var hopHeaders = map[string]bool{

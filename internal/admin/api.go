@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/phonyc/phonyc/internal/capture"
-	"github.com/phonyc/phonyc/internal/healthcheck"
-	"github.com/phonyc/phonyc/internal/snapshot"
-	"github.com/phonyc/phonyc/internal/store"
-	"github.com/phonyc/phonyc/internal/upstream"
+	"github.com/phonyg/phonyg/internal/capture"
+	"github.com/phonyg/phonyg/internal/healthcheck"
+	"github.com/phonyg/phonyg/internal/snapshot"
+	"github.com/phonyg/phonyg/internal/store"
+	"github.com/phonyg/phonyg/internal/upstream"
 )
 
 type API struct {
@@ -342,7 +342,6 @@ func (a *API) deleteModel(c *gin.Context) {
 	c.JSON(200, gin.H{"ok": true})
 }
 
-
 func (a *API) probeModels(c *gin.Context) {
 	var req struct {
 		BaseURL          string `json:"base_url"`
@@ -578,9 +577,9 @@ func (a *API) deletePreset(c *gin.Context) {
 
 func (a *API) listLogs(c *gin.Context) {
 	f := store.LogFilter{
-		Path:  c.Query("path"),
-		Q:     c.Query("q"),
-		Limit: atoiDefault(c.Query("limit"), 50),
+		Path:   c.Query("path"),
+		Q:      c.Query("q"),
+		Limit:  atoiDefault(c.Query("limit"), 50),
 		Offset: atoiDefault(c.Query("offset"), 0),
 	}
 	if v := c.Query("user_key_id"); v != "" {
@@ -657,7 +656,6 @@ func atoiDefault(s string, def int) int {
 	return n
 }
 
-
 func (a *API) testChannel(c *gin.Context) {
 	if a.Health == nil {
 		c.JSON(500, gin.H{"error": "healthcheck not available"})
@@ -688,13 +686,13 @@ func (a *API) healthcheckStatus(c *gin.Context) {
 	}
 	sum := a.Health.LastSummary()
 	c.JSON(200, gin.H{
-		"enabled": a.Store.GetSettingBool(store.SettingAutoTestEnabled, false),
-		"interval_minutes": a.Store.GetSettingInt(store.SettingAutoTestIntervalMin, 10),
+		"enabled":               a.Store.GetSettingBool(store.SettingAutoTestEnabled, false),
+		"interval_minutes":      a.Store.GetSettingInt(store.SettingAutoTestIntervalMin, 10),
 		"random_offset_minutes": a.Store.GetSettingInt(store.SettingAutoTestRandomOffset, 0),
-		"prompt": a.Store.GetSettingOr(store.SettingAutoTestPrompt, "hi"),
-		"model": a.Store.GetSettingOr(store.SettingAutoTestModel, ""),
-		"disable_status_codes": a.Store.GetSettingOr(store.SettingAutoTestDisableCodes, "401,403,404,503"),
-		"last_summary": sum,
+		"prompt":                a.Store.GetSettingOr(store.SettingAutoTestPrompt, "hi"),
+		"model":                 a.Store.GetSettingOr(store.SettingAutoTestModel, ""),
+		"disable_status_codes":  a.Store.GetSettingOr(store.SettingAutoTestDisableCodes, "401,403,404,503"),
+		"last_summary":          sum,
 	})
 }
 
@@ -708,9 +706,9 @@ func (a *API) getCapture(c *gin.Context) {
 		captured = cap
 	}
 	c.JSON(200, gin.H{
-		"enabled": a.Capture.Enabled(),
-		"armed": a.Capture.Armed(),
-		"key": a.Capture.Key(),
+		"enabled":  a.Capture.Enabled(),
+		"armed":    a.Capture.Armed(),
+		"key":      a.Capture.Key(),
 		"captured": captured,
 	})
 }

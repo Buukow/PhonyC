@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/phonyc/phonyc/internal/protocol"
+	"github.com/phonyg/phonyg/internal/protocol"
 )
 
 type FetchRequest struct {

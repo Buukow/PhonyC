@@ -134,7 +134,7 @@ export default function Keys() {
       <PageHeader
         title="用户 Key"
         subtitle="分发客户端凭证并绑定伪装策略"
-        actions={<Button onClick={startCreate}>新建 Key</Button>}
+        actions={formOpen ? undefined : <Button onClick={startCreate}>新建 Key</Button>}
       />
       {copyMsg && <div className="mb-4 text-sm text-primary">{copyMsg}</div>}
       {err && <div className="mb-4 text-sm text-warn">{err}</div>}

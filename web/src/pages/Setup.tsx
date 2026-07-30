@@ -33,7 +33,7 @@ export default function Setup() {
       <Card className="w-full max-w-md p-8">
         <div className="mb-6">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary grid place-items-center text-lg font-semibold mb-4">P</div>
-          <h1 className="text-xl font-semibold text-gray-800">初始化 PhonyC</h1>
+          <h1 className="text-xl font-semibold text-gray-800">初始化 PhonyG</h1>
           <p className="text-sm text-gray-400 mt-1">首次启动需创建唯一管理员账号</p>
         </div>
         <form className="space-y-4" onSubmit={onSubmit}>

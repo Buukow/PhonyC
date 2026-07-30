@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/phonyc/phonyc/internal/store"
+	"github.com/phonyg/phonyg/internal/store"
 )
 
 type Manager struct {

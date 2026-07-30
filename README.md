@@ -1,4 +1,4 @@
-# PhonyC
+# PhonyG
 
 轻量 AI API 中转网关（Go + React 管理台）。
 
@@ -14,7 +14,7 @@
 
 ```bash
 make build
-PHONYC_ADDR=:8080 PHONYC_DATA_DIR=./data ./bin/phonyc
+PHONYG_ADDR=:8080 PHONYG_DATA_DIR=./data ./bin/phonyg
 ```
 
 打开 http://127.0.0.1:8080 完成首次管理员初始化。
@@ -23,16 +23,16 @@ PHONYC_ADDR=:8080 PHONYC_DATA_DIR=./data ./bin/phonyc
 
 | 变量 | 默认 | 说明 |
 |------|------|------|
-| `PHONYC_ADDR` | `:8080` | 监听地址 |
-| `PHONYC_DATA_DIR` | `./data` | 数据目录 |
-| `PHONYC_JWT_SECRET` | 自动生成 | JWT 密钥 |
-| `PHONYC_MAX_BODY_BYTES` | 64MB | 请求体上限 |
+| `PHONYG_ADDR` | `:8080` | 监听地址 |
+| `PHONYG_DATA_DIR` | `./data` | 数据目录 |
+| `PHONYG_JWT_SECRET` | 自动生成 | JWT 密钥 |
+| `PHONYG_MAX_BODY_BYTES` | 64MB | 请求体上限 |
 
 ### 开发
 
 ```bash
 # 后端
-go run ./cmd/phonyc
+go run ./cmd/phonyg
 
 # 前端
 cd web && npm run dev
@@ -79,7 +79,7 @@ cd web && npm run dev
 ./scripts/deploy.sh
 # or
 make deploy
-systemctl status phonyc
+systemctl status phonyg
 ```
 
 Access URLs after deploy:
@@ -87,17 +87,17 @@ Access URLs after deploy:
 - http://172.16.0.106:23342/
 - http://202.189.7.62:23342/
 
-Service is managed by systemd unit `phonyc.service` with `Restart=always`.
+Service is managed by systemd unit `phonyg.service` with `Restart=always`.
 
 
 ## Docker
 
 ```bash
-docker pull ghcr.io/buukow/phonyc:1.1
-docker run -d --name phonyc \
+docker pull ghcr.io/buukow/phonyg:1.1
+docker run -d --name phonyg \
   -p 8080:8080 \
-  -v phonyc-data:/data \
-  ghcr.io/buukow/phonyc:1.1
+  -v phonyg-data:/data \
+  ghcr.io/buukow/phonyg:1.1
 ```
 
 镜像由 GitHub Actions 构建（`linux/amd64`），版本标签：`1.1`。

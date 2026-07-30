@@ -3,8 +3,8 @@ package proxy
 import (
 	"testing"
 
-	"github.com/phonyc/phonyc/internal/snapshot"
-	"github.com/phonyc/phonyc/internal/store"
+	"github.com/phonyg/phonyg/internal/snapshot"
+	"github.com/phonyg/phonyg/internal/store"
 )
 
 func TestSelectChannelPriority(t *testing.T) {
