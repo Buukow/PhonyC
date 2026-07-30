@@ -98,9 +98,11 @@ func TestProxyRewriteAndHeaders(t *testing.T) {
 	var gotBody []byte
 	var gotAuth string
 	var gotUA string
+	var gotAcceptEncoding string
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
 		gotUA = r.Header.Get("User-Agent")
+		gotAcceptEncoding = r.Header.Get("Accept-Encoding")
 		gotBody, _ = io.ReadAll(r.Body)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
@@ -142,6 +144,9 @@ func TestProxyRewriteAndHeaders(t *testing.T) {
 	}
 	if gotUA != "my-sdk/1.0" {
 		t.Fatalf("ua=%q", gotUA)
+	}
+	if gotAcceptEncoding != "" {
+		t.Fatalf("unexpected accept-encoding=%q", gotAcceptEncoding)
 	}
 	if !strings.Contains(string(gotBody), `"model":"upstream-m"`) {
 		t.Fatalf("body=%s", gotBody)

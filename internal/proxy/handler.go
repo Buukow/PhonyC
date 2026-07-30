@@ -40,7 +40,10 @@ func NewHandler(snap *snapshot.Manager, st *store.Store, cap *capture.Manager, m
 		MaxBodyBytes: maxBody,
 		Client: &http.Client{
 			Transport: &http.Transport{
-				Proxy: http.ProxyFromEnvironment,
+				// Preserve the explicitly assembled header set; otherwise net/http
+				// adds Accept-Encoding: gzip after BuildUpstreamHeaders returns.
+				DisableCompression: true,
+				Proxy:              http.ProxyFromEnvironment,
 				DialContext: (&net.Dialer{
 					Timeout:   30 * time.Second,
 					KeepAlive: 30 * time.Second,
