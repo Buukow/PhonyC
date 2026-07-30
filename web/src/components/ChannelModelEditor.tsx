@@ -3,10 +3,19 @@ import { api } from '@/lib/api'
 import { Badge, Button, Input, Label } from '@/components/ui'
 
 export type ModelDraft = {
+  /** Frontend-only stable identity; never sent to the API. */
+  ui_id: string
   client_model: string
   upstream_model: string
   rewrite_model: boolean
   enabled: boolean
+}
+
+let nextDraftID = 0
+
+export function createModelDraft(model: Omit<ModelDraft, 'ui_id'>): ModelDraft {
+  nextDraftID += 1
+  return { ui_id: `model-draft-${nextDraftID}`, ...model }
 }
 
 type Props = {
@@ -48,7 +57,7 @@ export default function ChannelModelEditor({ models, onChange, probe, channelId 
     }
     const up = (upstream || name).trim() || name
     const rw = rewrite ?? (up !== name)
-    onChange([...models, { client_model: name, upstream_model: up, rewrite_model: rw, enabled: true }])
+    onChange([...models, createModelDraft({ client_model: name, upstream_model: up, rewrite_model: rw, enabled: true })])
     setErr('')
     setMsg(`已添加 ${name}`)
   }
@@ -95,7 +104,7 @@ export default function ChannelModelEditor({ models, onChange, probe, channelId 
     let n = 0
     for (const id of visibleFetched) {
       if (have.has(id)) continue
-      next.push({ client_model: id, upstream_model: id, rewrite_model: false, enabled: true })
+      next.push(createModelDraft({ client_model: id, upstream_model: id, rewrite_model: false, enabled: true }))
       have.add(id)
       n++
     }
@@ -185,7 +194,7 @@ export default function ChannelModelEditor({ models, onChange, probe, channelId 
         ) : (
           <div className="divide-y divide-gray-50">
             {models.map((m, idx) => (
-              <div key={`${m.client_model}-${idx}`} className="px-3 py-2 grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
+              <div key={m.ui_id} className="px-3 py-2 grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
                 <div className="md:col-span-3">
                   <Input
                     value={m.client_model}

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '@/lib/api'
-import ChannelModelEditor, { type ModelDraft } from '@/components/ChannelModelEditor'
+import { channelPresentation } from '@/lib/channelState'
+import ChannelModelEditor, { createModelDraft, type ModelDraft } from '@/components/ChannelModelEditor'
 import { Badge, Button, Card, PageHeader } from '@/components/ui'
 
 export default function ChannelDetail() {
@@ -16,7 +17,7 @@ export default function ChannelDetail() {
     const c = await api(`/api/channels/${id}`)
     setCh(c)
     const m = await api<{ items: any[] }>(`/api/channels/${id}/models`)
-    setModels((m.items || []).map((x) => ({
+    setModels((m.items || []).map((x) => createModelDraft({
       client_model: x.client_model,
       upstream_model: x.upstream_model || x.client_model,
       rewrite_model: !!x.rewrite_model,
@@ -53,6 +54,7 @@ export default function ChannelDetail() {
   }
 
   if (!ch) return <div className="text-gray-400">加载中…</div>
+  const state = channelPresentation(ch)
 
   return (
     <div>
@@ -65,7 +67,7 @@ export default function ChannelDetail() {
       {err && <div className="mb-3 text-sm text-warn">{err}</div>}
       <Card className="p-5 mb-6 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
         <div><span className="text-gray-400">Base URL</span><div className="text-gray-800 break-all">{ch.base_url}</div></div>
-        <div><span className="text-gray-400">状态</span><div>{ch.enabled ? <Badge>启用</Badge> : <Badge tone="warn">停用</Badge>}</div></div>
+        <div><span className="text-gray-400">状态</span><div><Badge tone={state.tone}>{state.label}</Badge></div></div>
         <div><span className="text-gray-400">超时</span><div>{ch.timeout_ms} ms</div></div>
         <div><span className="text-gray-400">上游 Key</span><div className="font-mono text-xs">{ch.api_key ? '••••' + String(ch.api_key).slice(-4) : '—'}</div></div>
       </Card>

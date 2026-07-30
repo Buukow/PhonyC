@@ -71,15 +71,15 @@ func scanChannelRows(rows *sql.Rows) (*Channel, error) {
 }
 
 type ChannelInput struct {
-	Name             string `json:"name"`
-	Enabled          *bool  `json:"enabled"`
-	TempDisabled     *bool  `json:"temp_disabled"`
-	Protocol         string `json:"protocol"`
-	BaseURL          string `json:"base_url"`
-	APIKey           string `json:"api_key"`
-	Priority         *int   `json:"priority"`
-	ExtraHeadersJSON string `json:"extra_headers_json"`
-	TimeoutMS        *int   `json:"timeout_ms"`
+	Name             string  `json:"name"`
+	Enabled          *bool   `json:"enabled"`
+	TempDisabled     *bool   `json:"temp_disabled"`
+	Protocol         string  `json:"protocol"`
+	BaseURL          string  `json:"base_url"`
+	APIKey           string  `json:"api_key"`
+	Priority         *int    `json:"priority"`
+	ExtraHeadersJSON string  `json:"extra_headers_json"`
+	TimeoutMS        *int    `json:"timeout_ms"`
 	TestModel        *string `json:"test_model"`
 }
 
@@ -127,6 +127,9 @@ func (s *Store) UpdateChannel(id int64, in ChannelInput) (*Channel, error) {
 	}
 	if in.TempDisabled != nil {
 		cur.TempDisabled = *in.TempDisabled
+	}
+	if !cur.Enabled {
+		cur.TempDisabled = false
 	}
 	if in.Protocol != "" {
 		cur.Protocol = in.Protocol

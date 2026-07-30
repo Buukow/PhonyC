@@ -2,7 +2,8 @@ import { FormEvent, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { api } from '@/lib/api'
-import ChannelModelEditor, { type ModelDraft } from '@/components/ChannelModelEditor'
+import { channelPresentation } from '@/lib/channelState'
+import ChannelModelEditor, { createModelDraft, type ModelDraft } from '@/components/ChannelModelEditor'
 import { Badge, Button, Card, Input, Label, PageHeader, Select, Table, Textarea } from '@/components/ui'
 
 type Channel = {
@@ -78,7 +79,7 @@ export default function Channels() {
     setErr('')
     try {
       const m = await api<{ items: any[] }>(`/api/channels/${ch.id}/models`)
-      setModels((m.items || []).map((x) => ({
+      setModels((m.items || []).map((x) => createModelDraft({
         client_model: x.client_model,
         upstream_model: x.upstream_model || x.client_model,
         rewrite_model: !!x.rewrite_model,
@@ -140,7 +141,11 @@ export default function Channels() {
   }
 
   async function toggle(ch: Channel) {
-    await api(`/api/channels/${ch.id}`, { method: 'PATCH', body: JSON.stringify({ enabled: !ch.enabled }) })
+    const state = channelPresentation(ch)
+    await api(`/api/channels/${ch.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(state.actionPayload),
+    })
     await load()
   }
 
@@ -209,14 +214,14 @@ export default function Channels() {
       )}
       <Card className="p-2">
         <Table headers={['名称', '协议', '优先级', '状态', '最近测活', 'Base URL', '操作']}>
-          {items.map((ch) => (
-            <tr key={ch.id} className="border-b border-gray-50 hover:bg-canvas">
+          {items.map((ch) => {
+            const state = channelPresentation(ch)
+            return <tr key={ch.id} className="border-b border-gray-50 hover:bg-canvas">
               <td className="px-4 py-3"><Link className="text-primary hover:underline font-medium" to={`/channels/${ch.id}`}>{ch.name}</Link></td>
               <td className="px-4 py-3"><Badge tone="muted">{ch.protocol}</Badge></td>
               <td className="px-4 py-3">{ch.priority}</td>
-              <td className="px-4 py-3 space-x-1">
-                {ch.enabled ? <Badge>启用</Badge> : <Badge tone="warn">停用</Badge>}
-                {ch.temp_disabled ? <Badge tone="warn">测活临时禁用</Badge> : null}
+              <td className="px-4 py-3">
+                <Badge tone={state.tone}>{state.label}</Badge>
               </td>
               <td className="px-4 py-3 text-xs text-gray-500">
                 {ch.last_test_status ? `${ch.last_test_status} · ${ch.last_test_ms || 0}ms` : '—'}
@@ -226,11 +231,11 @@ export default function Channels() {
               <td className="px-4 py-3 space-x-2 whitespace-nowrap">
                 <Button variant="ghost" onClick={() => startEdit(ch)}>编辑</Button>
                 <Button variant="ghost" onClick={async () => { await api(`/api/channels/${ch.id}/test`, { method: 'POST', body: '{}' }); await load() }}>测活</Button>
-                <Button variant="ghost" onClick={() => toggle(ch)}>{ch.enabled ? '停用' : '启用'}</Button>
+                <Button variant="ghost" onClick={() => toggle(ch)}>{state.actionLabel}</Button>
                 <Button variant="danger" onClick={() => remove(ch.id)}>删除</Button>
               </td>
             </tr>
-          ))}
+          })}
         </Table>
       </Card>
     </div>

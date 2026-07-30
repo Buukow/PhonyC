@@ -56,7 +56,9 @@ cd web && npm run dev
 - 模型：每个渠道**模型表第一个启用映射**
 - 仅测手动启用的渠道（含临时禁用，用于恢复）
 - 命中配置状态码（默认 401/403/404/503）→ 临时禁用；下次 2xx → 恢复
-- 临时禁用不参与代理选路；渠道列表「测活」仅报告、不改禁用状态
+- 临时禁用不参与代理选路；渠道列表只显示一个明确状态：启用、停用或临时禁用
+- 手动测活允许测试所有渠道：停用/启用渠道只记录结果，临时禁用渠道仅在成功时恢复
+- 用户点击临时禁用渠道的「启用」可强制清除临时禁用状态
 
 ## 请求捕获
 
@@ -91,11 +93,11 @@ Service is managed by systemd unit `phonyc.service` with `Restart=always`.
 ## Docker
 
 ```bash
-docker pull ghcr.io/buukow/phonyc:1.0
+docker pull ghcr.io/buukow/phonyc:1.1
 docker run -d --name phonyc \
   -p 8080:8080 \
   -v phonyc-data:/data \
-  ghcr.io/buukow/phonyc:1.0
+  ghcr.io/buukow/phonyc:1.1
 ```
 
-镜像由 GitHub Actions 构建（`linux/amd64`），版本标签：`1.0`。
+镜像由 GitHub Actions 构建（`linux/amd64`），版本标签：`1.1`。

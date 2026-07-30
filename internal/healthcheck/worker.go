@@ -167,7 +167,7 @@ func (w *Worker) runOnce(applyBan bool) {
 
 	changed := false
 	for _, ch := range channels {
-		res := w.testChannel(ch, prompt, disableCodes, applyBan)
+		res := w.testChannel(ch, prompt, disableCodes, applyBan, applyBan)
 		summary.Total++
 		summary.Results = append(summary.Results, res)
 		if res.Error == "" && res.StatusCode > 0 && res.StatusCode < 400 {
@@ -217,7 +217,7 @@ func firstChannelModel(st *store.Store, channelID int64) string {
 	return ""
 }
 
-func (w *Worker) testChannel(ch store.Channel, prompt string, disableCodes []int, applyBan bool) ChannelResult {
+func (w *Worker) testChannel(ch store.Channel, prompt string, disableCodes []int, allowDisable, allowRecover bool) ChannelResult {
 	res := ChannelResult{ChannelID: ch.ID, Name: ch.Name, TempDisabled: ch.TempDisabled, Action: "none"}
 	// Decision 2.7: always each channel's first enabled model
 	modelName := firstChannelModel(w.Store, ch.ID)
@@ -278,7 +278,7 @@ func (w *Worker) testChannel(ch store.Channel, prompt string, disableCodes []int
 	var tempPtr *bool
 	if ok {
 		res.Error = ""
-		if applyBan && ch.TempDisabled {
+		if allowRecover && ch.TempDisabled {
 			f := false
 			tempPtr = &f
 			res.Action = "recover"
@@ -286,7 +286,7 @@ func (w *Worker) testChannel(ch store.Channel, prompt string, disableCodes []int
 		}
 	} else {
 		res.Error = fmt.Sprintf("upstream status %d", resp.StatusCode)
-		if applyBan && store.StatusCodeListContains(disableCodes, resp.StatusCode) {
+		if allowDisable && store.StatusCodeListContains(disableCodes, resp.StatusCode) {
 			t := true
 			tempPtr = &t
 			res.Action = "disable"
@@ -301,7 +301,6 @@ func (w *Worker) testChannel(ch store.Channel, prompt string, disableCodes []int
 	w.recordHealthcheckMeta(ch, path, modelName, res.StatusCode, res.LatencyMs, res.Error, tok)
 	return res
 }
-
 
 func (w *Worker) recordHealthcheckMeta(ch store.Channel, path, model string, status int, latencyMs int64, errSummary string, tok usage.Tokens) {
 	if status >= 400 {
@@ -353,20 +352,21 @@ func buildTestBody(proto, model, prompt string) (path string, body []byte, err e
 	}
 }
 
-// TestOne manual: report only, never change temp_disabled (decision 2.9B).
+// TestOne records results for every channel state. It only recovers a channel
+// that was temporarily disabled before a successful manual test.
 func (w *Worker) TestOne(channelID int64) (ChannelResult, error) {
 	ch, err := w.Store.GetChannel(channelID)
 	if err != nil {
 		return ChannelResult{}, err
-	}
-	if !ch.Enabled {
-		return ChannelResult{}, fmt.Errorf("channel is manually disabled")
 	}
 	prompt := w.Store.GetSettingOr(store.SettingAutoTestPrompt, "hi")
 	disableCodes := store.ParseStatusCodeList(
 		w.Store.GetSettingOr(store.SettingAutoTestDisableCodes, "401,403,404,503"),
 		[]int{401, 403, 404, 503},
 	)
-	res := w.testChannel(*ch, prompt, disableCodes, false)
+	res := w.testChannel(*ch, prompt, disableCodes, false, ch.Enabled && ch.TempDisabled)
+	if res.Action == "recover" {
+		_ = w.Snap.Reload()
+	}
 	return res, nil
 }

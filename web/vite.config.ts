@@ -18,4 +18,7 @@ export default defineConfig({
     outDir: '../internal/webembed/dist',
     emptyOutDir: true,
   },
+  test: {
+    environment: 'jsdom',
+  },
 })
