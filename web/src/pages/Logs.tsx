@@ -24,7 +24,7 @@ export default function Logs() {
 
   return (
     <div>
-      <PageHeader title="请求日志" subtitle="元数据 + Token（input/output/total），不含成功 body" />
+      <PageHeader title="请求日志" subtitle="元数据 + Token（input/output/total）" />
       <Card className="p-4 mb-6 flex flex-col md:flex-row gap-3">
         <Input placeholder="搜索 model / request_id / 错误" value={q} onChange={(e) => setQ(e.target.value)} />
         <Input placeholder="路径过滤，如 /v1/responses" value={path} onChange={(e) => setPath(e.target.value)} />

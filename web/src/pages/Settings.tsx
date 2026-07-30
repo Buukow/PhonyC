@@ -65,10 +65,6 @@ export default function SettingsPage() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <Card className="p-6">
           <div className="text-lg font-semibold mb-4">自动测活</div>
-          <p className="text-xs text-gray-400 mb-4">
-            仅测试「手动启用」的渠道（含测活临时禁用，用于恢复）。命中临时禁用状态码时临时禁用；下次测活成功则恢复。
-            <strong>正式转发</strong>若收到相同状态码，也会立即将渠道设为临时禁用。渠道列表「测活」按钮只出报告、不改禁用状态。
-          </p>
           <form className="space-y-4" onSubmit={saveSettings}>
             <label className="flex items-center gap-2 text-sm text-gray-700">
               <input
@@ -136,10 +132,6 @@ export default function SettingsPage() {
         <div className="space-y-6">
           <Card className="p-6">
             <div className="text-lg font-semibold mb-4">自动重试</div>
-            <p className="text-xs text-gray-400 mb-4">
-              正式转发上游返回指定状态码时，可自动换其它可用渠道重试（优先排除已失败渠道）。
-              若状态码同时属于「临时禁用状态码」，会先将该渠道临时禁用再重试。
-            </p>
             <form className="space-y-4" onSubmit={saveSettings}>
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
@@ -174,9 +166,6 @@ export default function SettingsPage() {
 
           <Card className="p-6">
             <div className="text-lg font-semibold mb-4">日志管理</div>
-            <p className="text-xs text-gray-400 mb-4">
-              控制请求日志元数据在本地的保留时长；到期日志将由系统清理。
-            </p>
             <form className="space-y-4" onSubmit={saveSettings}>
               <div>
                 <Label>日志保留天数</Label>

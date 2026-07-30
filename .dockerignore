@@ -1,0 +1,16 @@
+.git
+.github
+bin
+data
+docs
+scripts
+web/node_modules
+web/dist
+internal/webembed/dist
+*.log
+relay-*.log
+.env
+.env.*
+ai测试专用渠道.txt
+STYLEKIT_STYLE_REFERENCE_warm-sage-admin.md
+REPO_LOCATION.txt

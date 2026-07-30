@@ -87,3 +87,15 @@ Access URLs after deploy:
 
 Service is managed by systemd unit `phonyc.service` with `Restart=always`.
 
+
+## Docker
+
+```bash
+docker pull ghcr.io/buukow/phonyc:1.0
+docker run -d --name phonyc \
+  -p 8080:8080 \
+  -v phonyc-data:/data \
+  ghcr.io/buukow/phonyc:1.0
+```
+
+镜像由 GitHub Actions 构建（`linux/amd64`），版本标签：`1.0`。
