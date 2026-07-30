@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
+	"github.com/phonyg/phonyg/internal/healthcheck"
 	"github.com/phonyg/phonyg/internal/store"
 )
 
@@ -54,6 +55,8 @@ func EnsureBuiltinPresets(st *store.Store) error {
 		store.SettingAutoTestPrompt:       "hi",
 		store.SettingAutoTestModel:        "",
 		store.SettingAutoTestDisableCodes: "401,403,404,503",
+		store.SettingAutoTestEnhanced:     "false",
+		store.SettingAutoTestLexicon:      healthcheck.DefaultEnhancedLexiconJSON(),
 		store.SettingHeaderCaptureEnabled: "false",
 		store.SettingHeaderCaptureArmed:   "false",
 		store.SettingHeaderCapturePayload: "",

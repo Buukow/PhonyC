@@ -76,6 +76,8 @@ const (
 	SettingAutoTestPrompt       = "auto_test_prompt"
 	SettingAutoTestModel        = "auto_test_model"
 	SettingAutoTestDisableCodes = "auto_test_disable_status_codes"
+	SettingAutoTestEnhanced     = "auto_test_enhanced_enabled"
+	SettingAutoTestLexicon      = "auto_test_enhanced_lexicon"
 	SettingHeaderCaptureEnabled = "header_capture_enabled"
 	SettingHeaderCaptureKey     = "header_capture_key"
 	SettingHeaderCaptureArmed   = "header_capture_armed" // "1" waiting for first request

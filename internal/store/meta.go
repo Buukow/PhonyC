@@ -401,6 +401,20 @@ func (s *Store) SetSetting(key, value string) error {
 	return err
 }
 
+func (s *Store) SetSettings(values map[string]string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for key, value := range values {
+		if _, err := tx.Exec(`INSERT INTO app_settings(key, value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, key, value); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 func (s *Store) ListSettings() (map[string]string, error) {
 	rows, err := s.db.Query(`SELECT key, value FROM app_settings`)
 	if err != nil {

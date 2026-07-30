@@ -45,14 +45,15 @@ type RunSummary struct {
 }
 
 type ChannelResult struct {
-	ChannelID    int64  `json:"channel_id"`
-	Name         string `json:"name"`
-	Model        string `json:"model"`
-	StatusCode   int    `json:"status_code"`
-	LatencyMs    int64  `json:"latency_ms"`
-	Error        string `json:"error"`
-	TempDisabled bool   `json:"temp_disabled"`
-	Action       string `json:"action"` // none|disable|recover
+	ChannelID      int64  `json:"channel_id"`
+	Name           string `json:"name"`
+	Model          string `json:"model"`
+	StatusCode     int    `json:"status_code"`
+	LatencyMs      int64  `json:"latency_ms"`
+	Error          string `json:"error"`
+	TempDisabled   bool   `json:"temp_disabled"`
+	Action         string `json:"action"` // none|disable|recover
+	StreamFallback bool   `json:"stream_fallback"`
 }
 
 func New(st *store.Store, snap *snapshot.Manager) *Worker {
@@ -159,7 +160,6 @@ func (w *Worker) runOnce(applyBan bool) {
 		log.Printf("healthcheck list channels: %v", err)
 		return
 	}
-	prompt := w.Store.GetSettingOr(store.SettingAutoTestPrompt, "hi")
 	disableCodes := store.ParseStatusCodeList(
 		w.Store.GetSettingOr(store.SettingAutoTestDisableCodes, "401,403,404,503"),
 		[]int{401, 403, 404, 503},
@@ -167,7 +167,8 @@ func (w *Worker) runOnce(applyBan bool) {
 
 	changed := false
 	for _, ch := range channels {
-		res := w.testChannel(ch, prompt, disableCodes, applyBan, applyBan)
+		prompt, enhanced := w.promptForCheck()
+		res := w.testChannel(ch, prompt, enhanced, disableCodes, applyBan, applyBan)
 		summary.Total++
 		summary.Results = append(summary.Results, res)
 		if res.Error == "" && res.StatusCode > 0 && res.StatusCode < 400 {
@@ -217,7 +218,28 @@ func firstChannelModel(st *store.Store, channelID int64) string {
 	return ""
 }
 
-func (w *Worker) testChannel(ch store.Channel, prompt string, disableCodes []int, allowDisable, allowRecover bool) ChannelResult {
+func (w *Worker) promptForCheck() (string, bool) {
+	if !w.Store.GetSettingBool(store.SettingAutoTestEnhanced, false) {
+		return w.Store.GetSettingOr(store.SettingAutoTestPrompt, "hi"), false
+	}
+	raw := w.Store.GetSettingOr(store.SettingAutoTestLexicon, DefaultEnhancedLexiconJSON())
+	lex, err := ParseEnhancedLexicon(raw)
+	if err != nil {
+		log.Printf("enhanced healthcheck lexicon invalid, using default: %v", err)
+		lex = defaultEnhancedLexicon
+	}
+	return GenerateEnhancedPrompt(lex, globalRandom{}), true
+}
+
+type requestAttempt struct {
+	StatusCode  int
+	LatencyMs   int64
+	Error       string
+	Body        []byte
+	ContentType string
+}
+
+func (w *Worker) testChannel(ch store.Channel, prompt string, enhanced bool, disableCodes []int, allowDisable, allowRecover bool) ChannelResult {
 	res := ChannelResult{ChannelID: ch.ID, Name: ch.Name, TempDisabled: ch.TempDisabled, Action: "none"}
 	// Decision 2.7: always each channel's first enabled model
 	modelName := firstChannelModel(w.Store, ch.ID)
@@ -228,53 +250,42 @@ func (w *Worker) testChannel(ch store.Channel, prompt string, disableCodes []int
 	}
 	res.Model = modelName
 
-	path, body, err := buildTestBody(ch.Protocol, modelName, prompt)
+	path, body, err := buildTestBody(ch.Protocol, modelName, prompt, enhanced)
 	if err != nil {
 		res.Error = err.Error()
 		_ = w.Store.UpdateChannelTestResult(ch.ID, 0, 0, res.Error, nil)
 		return res
-	}
-
-	base := strings.TrimRight(ch.BaseURL, "/")
-	url := base + path
-	timeout := time.Duration(ch.TimeoutMS) * time.Millisecond
-	if timeout <= 0 || timeout > 2*time.Minute {
-		timeout = 60 * time.Second
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		res.Error = err.Error()
-		_ = w.Store.UpdateChannelTestResult(ch.ID, 0, 0, res.Error, nil)
-		return res
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.ContentLength = int64(len(body))
-	protocol.Get(ch.Protocol).ApplyAuth(req.Header, ch.APIKey)
-	var extra map[string]string
-	_ = json.Unmarshal([]byte(ch.ExtraHeadersJSON), &extra)
-	for k, v := range extra {
-		if k != "" {
-			req.Header.Set(k, v)
-		}
 	}
 
 	start := time.Now()
-	resp, err := w.Client.Do(req)
-	res.LatencyMs = time.Since(start).Milliseconds()
-	if err != nil {
-		res.Error = err.Error()
+	attempt := w.performRequest(ch, path, body)
+	fallbackDetail := ""
+	if enhanced && !streamAttemptSucceeded(attempt) {
+		res.StreamFallback = true
+		fallbackDetail = streamFailureSummary(attempt)
+		_, fallbackBody, buildErr := buildTestBody(ch.Protocol, modelName, prompt, false)
+		if buildErr != nil {
+			attempt = requestAttempt{LatencyMs: time.Since(start).Milliseconds(), Error: buildErr.Error()}
+		} else {
+			attempt = w.performRequest(ch, path, fallbackBody)
+			attempt.LatencyMs = time.Since(start).Milliseconds()
+		}
+	}
+	res.LatencyMs = attempt.LatencyMs
+	res.StatusCode = attempt.StatusCode
+	bodyBytes := attempt.Body
+	if attempt.Error != "" {
+		res.Error = attempt.Error
 		_ = w.Store.UpdateChannelTestResult(ch.ID, 0, res.LatencyMs, res.Error, nil)
-		w.recordHealthcheckMeta(ch, path, modelName, 0, res.LatencyMs, res.Error, usage.Tokens{})
+		metaError := res.Error
+		if fallbackDetail != "" {
+			metaError = "stream fallback (" + fallbackDetail + "): " + metaError
+		}
+		w.recordHealthcheckMeta(ch, path, modelName, 0, res.LatencyMs, metaError, usage.Tokens{})
 		return res
 	}
-	defer resp.Body.Close()
-	bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	res.StatusCode = resp.StatusCode
 
-	ok := resp.StatusCode >= 200 && resp.StatusCode < 400
+	ok := attempt.StatusCode >= 200 && attempt.StatusCode < 400
 	var tempPtr *bool
 	if ok {
 		res.Error = ""
@@ -285,8 +296,8 @@ func (w *Worker) testChannel(ch store.Channel, prompt string, disableCodes []int
 			res.TempDisabled = false
 		}
 	} else {
-		res.Error = fmt.Sprintf("upstream status %d", resp.StatusCode)
-		if allowDisable && store.StatusCodeListContains(disableCodes, resp.StatusCode) {
+		res.Error = fmt.Sprintf("upstream status %d", attempt.StatusCode)
+		if allowDisable && store.StatusCodeListContains(disableCodes, attempt.StatusCode) {
 			t := true
 			tempPtr = &t
 			res.Action = "disable"
@@ -298,8 +309,66 @@ func (w *Worker) testChannel(ch store.Channel, prompt string, disableCodes []int
 	if ok {
 		tok = usage.ParseTopLevelJSON(bodyBytes)
 	}
-	w.recordHealthcheckMeta(ch, path, modelName, res.StatusCode, res.LatencyMs, res.Error, tok)
+	metaError := res.Error
+	if fallbackDetail != "" {
+		if metaError == "" {
+			metaError = "stream fallback: " + fallbackDetail
+		} else {
+			metaError = "stream fallback (" + fallbackDetail + "): " + metaError
+		}
+	}
+	w.recordHealthcheckMeta(ch, path, modelName, res.StatusCode, res.LatencyMs, metaError, tok)
 	return res
+}
+
+func (w *Worker) performRequest(ch store.Channel, path string, body []byte) requestAttempt {
+	timeout := time.Duration(ch.TimeoutMS) * time.Millisecond
+	if timeout <= 0 || timeout > 2*time.Minute {
+		timeout = 60 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	url := strings.TrimRight(ch.BaseURL, "/") + path
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return requestAttempt{Error: err.Error()}
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.ContentLength = int64(len(body))
+	protocol.Get(ch.Protocol).ApplyAuth(req.Header, ch.APIKey)
+	var extra map[string]string
+	_ = json.Unmarshal([]byte(ch.ExtraHeadersJSON), &extra)
+	for k, v := range extra {
+		if k != "" {
+			req.Header.Set(k, v)
+		}
+	}
+	start := time.Now()
+	resp, err := w.Client.Do(req)
+	latency := time.Since(start).Milliseconds()
+	if err != nil {
+		return requestAttempt{LatencyMs: latency, Error: err.Error()}
+	}
+	defer resp.Body.Close()
+	bodyBytes, readErr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if readErr != nil {
+		return requestAttempt{StatusCode: resp.StatusCode, LatencyMs: latency, Error: readErr.Error(), ContentType: resp.Header.Get("Content-Type")}
+	}
+	return requestAttempt{StatusCode: resp.StatusCode, LatencyMs: latency, Body: bodyBytes, ContentType: resp.Header.Get("Content-Type")}
+}
+
+func streamAttemptSucceeded(attempt requestAttempt) bool {
+	return attempt.Error == "" && attempt.StatusCode >= 200 && attempt.StatusCode < 400 && streamHasContent(attempt.ContentType, attempt.Body)
+}
+
+func streamFailureSummary(attempt requestAttempt) string {
+	if attempt.Error != "" {
+		return attempt.Error
+	}
+	if attempt.StatusCode < 200 || attempt.StatusCode >= 400 {
+		return fmt.Sprintf("upstream status %d", attempt.StatusCode)
+	}
+	return "empty or unrecognized stream"
 }
 
 func (w *Worker) recordHealthcheckMeta(ch store.Channel, path, model string, status int, latencyMs int64, errSummary string, tok usage.Tokens) {
@@ -328,7 +397,7 @@ func (w *Worker) recordHealthcheckMeta(ch store.Channel, path, model string, sta
 	_ = w.Store.InsertRequestMeta(m)
 }
 
-func buildTestBody(proto, model, prompt string) (path string, body []byte, err error) {
+func buildTestBody(proto, model, prompt string, stream bool) (path string, body []byte, err error) {
 	if prompt == "" {
 		prompt = "hi"
 	}
@@ -336,7 +405,7 @@ func buildTestBody(proto, model, prompt string) (path string, body []byte, err e
 	case protocol.Anthropic:
 		path = "/v1/messages"
 		payload := map[string]any{
-			"model": model, "max_tokens": 16, "stream": false,
+			"model": model, "max_tokens": 16, "stream": stream,
 			"messages": []map[string]any{{"role": "user", "content": prompt}},
 		}
 		body, err = json.Marshal(payload)
@@ -344,7 +413,7 @@ func buildTestBody(proto, model, prompt string) (path string, body []byte, err e
 	default:
 		path = "/v1/chat/completions"
 		payload := map[string]any{
-			"model": model, "max_tokens": 16, "stream": false,
+			"model": model, "max_tokens": 16, "stream": stream,
 			"messages": []map[string]any{{"role": "user", "content": prompt}},
 		}
 		body, err = json.Marshal(payload)
@@ -359,12 +428,12 @@ func (w *Worker) TestOne(channelID int64) (ChannelResult, error) {
 	if err != nil {
 		return ChannelResult{}, err
 	}
-	prompt := w.Store.GetSettingOr(store.SettingAutoTestPrompt, "hi")
+	prompt, enhanced := w.promptForCheck()
 	disableCodes := store.ParseStatusCodeList(
 		w.Store.GetSettingOr(store.SettingAutoTestDisableCodes, "401,403,404,503"),
 		[]int{401, 403, 404, 503},
 	)
-	res := w.testChannel(*ch, prompt, disableCodes, false, ch.Enabled && ch.TempDisabled)
+	res := w.testChannel(*ch, prompt, enhanced, disableCodes, false, ch.Enabled && ch.TempDisabled)
 	if res.Action == "recover" {
 		_ = w.Snap.Reload()
 	}

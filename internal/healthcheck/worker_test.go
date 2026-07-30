@@ -1,6 +1,8 @@
 package healthcheck
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -37,6 +39,61 @@ func healthTestWorker(t *testing.T, status *int) (*Worker, *store.Store, int64) 
 		t.Fatal(err)
 	}
 	return New(st, snap), st, ch.ID
+}
+
+func TestEnhancedHealthcheckStreamFallbackKeepsPayload(t *testing.T) {
+	var bodies []map[string]any
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		var payload map[string]any
+		_ = json.Unmarshal(body, &payload)
+		bodies = append(bodies, payload)
+		if payload["stream"] == true {
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("data: [DONE]\n\n"))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer up.Close()
+
+	st, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	enabled := true
+	ch, _ := st.CreateChannel(store.ChannelInput{Name: "enhanced", Enabled: &enabled, Protocol: "openai", BaseURL: up.URL})
+	rewrite := false
+	_, _ = st.CreateChannelModel(ch.ID, store.ChannelModelInput{ClientModel: "model", UpstreamModel: "model", RewriteModel: &rewrite, Enabled: &enabled})
+	_ = st.SetSetting(store.SettingAutoTestEnhanced, "true")
+	_ = st.SetSetting(store.SettingAutoTestLexicon, `{"prefix":["介绍"],"modifier":[""],"modal_words":[""],"short_rules":["简短"],"targets":["docker"]}`)
+	snap := snapshot.NewManager(st)
+	_ = snap.Reload()
+	w := New(st, snap)
+	res, err := w.TestOne(ch.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.StreamFallback || res.StatusCode != http.StatusOK || len(bodies) != 2 {
+		t.Fatalf("result=%+v bodies=%v", res, bodies)
+	}
+	if bodies[0]["stream"] != true || bodies[1]["stream"] != false {
+		t.Fatalf("stream flags=%v %v", bodies[0]["stream"], bodies[1]["stream"])
+	}
+	for _, key := range []string{"model", "max_tokens", "messages"} {
+		if !jsonEqual(bodies[0][key], bodies[1][key]) {
+			t.Fatalf("fallback changed %s: %#v %#v", key, bodies[0][key], bodies[1][key])
+		}
+	}
+}
+
+func jsonEqual(a, b any) bool {
+	aa, _ := json.Marshal(a)
+	bb, _ := json.Marshal(b)
+	return string(aa) == string(bb)
 }
 
 func TestManualHealthcheckStateTransitions(t *testing.T) {

@@ -74,6 +74,7 @@ func (a *API) Register(r *gin.Engine) {
 	authz.POST("/channels/:id/test", a.testChannel)
 	authz.POST("/healthcheck/run", a.runHealthcheck)
 	authz.GET("/healthcheck/status", a.healthcheckStatus)
+	authz.POST("/healthcheck/enhanced-preview", a.previewEnhancedHealthcheck)
 
 	// header capture
 	authz.GET("/capture", a.getCapture)
@@ -625,7 +626,10 @@ func (a *API) getSettings(c *gin.Context) {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{"settings": m})
+	if m[store.SettingAutoTestLexicon] == "" {
+		m[store.SettingAutoTestLexicon] = healthcheck.DefaultEnhancedLexiconJSON()
+	}
+	c.JSON(200, gin.H{"settings": m, "enhanced_lexicon_default": healthcheck.DefaultEnhancedLexiconJSON()})
 }
 
 func (a *API) patchSettings(c *gin.Context) {
@@ -636,13 +640,33 @@ func (a *API) patchSettings(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "invalid body"})
 		return
 	}
-	for k, v := range req.Settings {
-		if err := a.Store.SetSetting(k, v); err != nil {
-			c.JSON(500, gin.H{"error": err.Error()})
+	if raw, ok := req.Settings[store.SettingAutoTestLexicon]; ok {
+		if _, err := healthcheck.ParseEnhancedLexicon(raw); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
 	}
+	if err := a.Store.SetSettings(req.Settings); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(200, gin.H{"ok": true})
+}
+
+func (a *API) previewEnhancedHealthcheck(c *gin.Context) {
+	var req struct {
+		Lexicon string `json:"lexicon"`
+	}
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "invalid body"})
+		return
+	}
+	lex, err := healthcheck.ParseEnhancedLexicon(req.Lexicon)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"prompt": healthcheck.GenerateEnhancedPrompt(lex, nil)})
 }
 
 func atoiDefault(s string, def int) int {
@@ -692,6 +716,7 @@ func (a *API) healthcheckStatus(c *gin.Context) {
 		"prompt":                a.Store.GetSettingOr(store.SettingAutoTestPrompt, "hi"),
 		"model":                 a.Store.GetSettingOr(store.SettingAutoTestModel, ""),
 		"disable_status_codes":  a.Store.GetSettingOr(store.SettingAutoTestDisableCodes, "401,403,404,503"),
+		"enhanced_enabled":      a.Store.GetSettingBool(store.SettingAutoTestEnhanced, false),
 		"last_summary":          sum,
 	})
 }
