@@ -69,7 +69,7 @@ func TestEnhancedHealthcheckStreamFallbackKeepsPayload(t *testing.T) {
 	rewrite := false
 	_, _ = st.CreateChannelModel(ch.ID, store.ChannelModelInput{ClientModel: "model", UpstreamModel: "model", RewriteModel: &rewrite, Enabled: &enabled})
 	_ = st.SetSetting(store.SettingAutoTestEnhanced, "true")
-	_ = st.SetSetting(store.SettingAutoTestLexicon, `{"prefix":["介绍"],"modifier":[""],"modal_words":[""],"short_rules":["简短"],"targets":["docker"]}`)
+	_ = st.SetSetting(store.SettingAutoTestLexicon, `{"schema_version":2,"prefix":["介绍"],"target_patterns":["{target}"],"modal_words":[""],"short_rules":["简短"],"targets":["docker"]}`)
 	snap := snapshot.NewManager(st)
 	_ = snap.Reload()
 	w := New(st, snap)

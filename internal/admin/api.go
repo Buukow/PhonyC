@@ -641,10 +641,12 @@ func (a *API) patchSettings(c *gin.Context) {
 		return
 	}
 	if raw, ok := req.Settings[store.SettingAutoTestLexicon]; ok {
-		if _, err := healthcheck.ParseEnhancedLexicon(raw); err != nil {
+		normalized, _, err := healthcheck.NormalizeEnhancedLexiconJSON(raw)
+		if err != nil {
 			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
+		req.Settings[store.SettingAutoTestLexicon] = normalized
 	}
 	if err := a.Store.SetSettings(req.Settings); err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
@@ -661,7 +663,12 @@ func (a *API) previewEnhancedHealthcheck(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "invalid body"})
 		return
 	}
-	lex, err := healthcheck.ParseEnhancedLexicon(req.Lexicon)
+	normalized, _, err := healthcheck.NormalizeEnhancedLexiconJSON(req.Lexicon)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	lex, err := healthcheck.ParseEnhancedLexicon(normalized)
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return

@@ -30,9 +30,9 @@ func TestEnhancedLexiconValidation(t *testing.T) {
 	}
 	bad := []string{
 		`{"prefix":[]}`,
-		`{"prefix":["a"],"modifier":[],"modal_words":[""],"short_rules":["s"],"targets":["t"]}`,
-		`{"prefix":["a"],"modifier":[],"modal_words":[""],"short_rules":["s"],"targets":["t"],"punctuation":["。"]}`,
-		`{"prefix":[""],"modifier":[],"modal_words":[""],"short_rules":["s"],"targets":["t"]}`,
+		`{"prefix":["a"],"target_patterns":[],"modal_words":[""],"short_rules":["s"],"targets":["t"]}`,
+		`{"prefix":[""],"target_patterns":["{target}"],"modal_words":[""],"short_rules":["s"],"targets":["t"]}`,
+		`{"prefix":["a"],"target_patterns":["target"],"modal_words":[""],"short_rules":["s"],"targets":["t"]}`,
 	}
 	for _, raw := range bad {
 		if _, err := ParseEnhancedLexicon(raw); err == nil {
@@ -43,31 +43,43 @@ func TestEnhancedLexiconValidation(t *testing.T) {
 
 func TestGenerateEnhancedPromptRules(t *testing.T) {
 	lex := EnhancedLexicon{
-		Prefix: []string{"介绍"}, Modifier: []string{"大致"}, ModalWords: []string{"吧"}, ShortRules: []string{"简短作答"}, Targets: []string{"docker"},
+		SchemaVersion: 2, Prefix: []string{"介绍"}, TargetPatterns: []string{"什么是{target}"}, ModalWords: []string{"吧"}, ShortRules: []string{"简短作答"}, Targets: []string{"docker"},
 	}
 	r := &sequenceRandom{
-		// choices prefix/modifier/target; template 1; short choice; short at start; modal choices.
-		ints: []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		// include short; modal on all four; commas between all; terminal period.
-		floats: []float64{0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1},
+		ints:   []int{0, 0, 0, 0, 0, 0, 0, 0},
+		floats: []float64{0.1, 0.1, 0.1, 0.1, 0.1},
 	}
 	got := GenerateEnhancedPrompt(lex, r)
-	want := "简短作答吧，介绍吧，大致吧，docker吧。"
+	want := "简短作答吧，介绍，什么是docker。"
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
 	}
 }
 
-func TestGenerateEnhancedPromptInvertedEmptyModifier(t *testing.T) {
+func TestGenerateEnhancedPromptInvertedWithoutModal(t *testing.T) {
 	lex := EnhancedLexicon{
-		Prefix: []string{"介绍"}, Modifier: []string{""}, ModalWords: []string{""}, ShortRules: []string{"简短"}, Targets: []string{"git"},
+		SchemaVersion: 2, Prefix: []string{"介绍"}, TargetPatterns: []string{"{target}是什么"}, ModalWords: []string{""}, ShortRules: []string{"简短"}, Targets: []string{"git"},
 	}
 	r := &sequenceRandom{
 		ints:   []int{0, 0, 0, 1},
-		floats: []float64{0.9, 0.9, 0.9, 0.9, 0.9},
+		floats: []float64{0.9, 0.9, 0.9, 0.9},
 	}
-	if got := GenerateEnhancedPrompt(lex, r); got != "git介绍" {
+	if got := GenerateEnhancedPrompt(lex, r); got != "git是什么介绍" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestNormalizeEnhancedLexiconMigratesFields(t *testing.T) {
+	raw := `{"prefix":["介绍"],"modifier":["大致"],"modal_words":[""],"short_rules":["简短"],"targets":["docker"],"custom":true}`
+	normalized, changes, err := NormalizeEnhancedLexiconJSON(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !changes.Changed() || !strings.Contains(normalized, `"schema_version": 2`) || !strings.Contains(normalized, `"target_patterns"`) {
+		t.Fatalf("normalization incomplete: %s %+v", normalized, changes)
+	}
+	if strings.Contains(normalized, "modifier") || strings.Contains(normalized, "custom") {
+		t.Fatalf("obsolete fields retained: %s", normalized)
 	}
 }
 

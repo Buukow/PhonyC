@@ -104,7 +104,7 @@ export default function SettingsPage() {
                 onChange={(e) => setBool('auto_test_enabled', e.target.checked)}
               />
               开启自动测活
-              {hc?.enabled ? <Badge>运行中</Badge> : <Badge tone="muted">关闭</Badge>}
+              {hc?.enabled ? <Badge>运行中</Badge> : null}
             </label>
             <label className="flex items-center gap-2 text-sm text-gray-700">
               <input
@@ -113,13 +113,12 @@ export default function SettingsPage() {
                 onChange={(e) => setBool('auto_test_enhanced_enabled', e.target.checked)}
               />
               自动测活增强
-              {(settings.auto_test_enhanced_enabled || 'false') === 'true' ? <Badge tone="accent">流式优先</Badge> : null}
             </label>
             {(settings.auto_test_enhanced_enabled || 'false') === 'true' && (
               <div className="rounded-2xl border border-gray-100 bg-canvas/70 p-4 space-y-3">
                 <div className="text-xs text-gray-500 leading-5">
-                  随机使用 <code>{'{prefix}{modifier}{target}'}</code> 或 <code>{'{modifier}{target}{prefix}'}</code>。
-                  短规则 40%，片段语气词 30%，片段间逗号 60%，句末句号 30%。测活先使用流式，失败自动降级非流式。
+                  随机使用 <code>{'{prefix}{target}'}</code> 或 <code>{'{target}{prefix}'}</code>。
+                  语气词与标点随机
                 </div>
                 <div>
                   <label htmlFor="enhanced-lexicon" className="block text-xs font-medium text-gray-500 mb-1.5">增强测活 JSON 词库</label>
@@ -129,6 +128,7 @@ export default function SettingsPage() {
                     value={settings.auto_test_enhanced_lexicon || defaultLexicon}
                     onChange={(e) => updateLexicon(e.target.value)}
                   />
+                  <p className="mt-1 text-[11px] text-gray-400">schema_version 由系统维护，保存时会自动更新。</p>
                   {lexiconError && <p className="text-xs text-warn mt-1">{lexiconError}</p>}
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -164,12 +164,9 @@ export default function SettingsPage() {
                 value={settings.auto_test_prompt ?? 'hi'}
                 onChange={(e) => setSettings({ ...settings, auto_test_prompt: e.target.value })}
               />
-              <p className="text-[11px] text-gray-400 mt-1">
-                {(settings.auto_test_enhanced_enabled || 'false') === 'true' ? '增强模式开启时不使用此固定提问词。' : '增强模式关闭时使用此固定提问词。'}
-              </p>
-            </div>
-            <div className="text-xs text-gray-400 bg-canvas rounded-xl px-3 py-2">
-              测活模型：固定使用<strong>每个渠道模型表中第一个启用映射</strong>。
+              {(settings.auto_test_enhanced_enabled || 'false') === 'true' && (
+                <p className="text-[11px] text-gray-400 mt-1">增强模式开启时不使用此固定提问词。</p>
+              )}
             </div>
             <div>
               <Label>临时禁用状态码（逗号分隔）</Label>

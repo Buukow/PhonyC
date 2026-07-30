@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import SettingsPage from './Settings'
 
-const defaultLexicon = JSON.stringify({ prefix: ['介绍'], modifier: [''], modal_words: [''], short_rules: ['简短'], targets: ['docker'] }, null, 2)
+const defaultLexicon = JSON.stringify({ schema_version: 2, prefix: ['介绍'], target_patterns: ['什么是{target}'], modal_words: [''], short_rules: ['简短'], targets: ['docker'] }, null, 2)
 
 vi.mock('@/lib/api', () => ({
   api: vi.fn(async (path: string, init?: RequestInit) => {
@@ -31,6 +31,7 @@ describe('enhanced healthcheck settings', () => {
     await user.click(toggle)
     const editor = screen.getByRole('textbox', { name: '增强测活 JSON 词库' }) as HTMLTextAreaElement
     expect(editor.value).toBe(defaultLexicon)
+    expect(screen.getByText(/schema_version 由系统维护/)).toBeTruthy()
     expect(screen.getByText('增强模式开启时不使用此固定提问词。')).toBeTruthy()
 
     await user.click(screen.getByRole('button', { name: '随机预览' }))

@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"log"
+	"sort"
 
 	"github.com/phonyg/phonyg/internal/healthcheck"
 	"github.com/phonyg/phonyg/internal/store"
@@ -64,6 +66,19 @@ func EnsureBuiltinPresets(st *store.Store) error {
 	for k, v := range defaults {
 		if _, err := st.GetSetting(k); err != nil {
 			_ = st.SetSetting(k, v)
+		}
+	}
+	if raw, err := st.GetSetting(store.SettingAutoTestLexicon); err == nil {
+		normalized, changes, normalizeErr := healthcheck.NormalizeEnhancedLexiconJSON(raw)
+		if normalizeErr != nil {
+			log.Printf("enhanced healthcheck lexicon migration skipped: %v", normalizeErr)
+		} else if changes.Changed() {
+			sort.Strings(changes.Added)
+			sort.Strings(changes.Removed)
+			if err := st.SetSetting(store.SettingAutoTestLexicon, normalized); err != nil {
+				return err
+			}
+			log.Printf("enhanced healthcheck lexicon migrated: added=%v removed=%v schema_version_changed=%t", changes.Added, changes.Removed, changes.SchemaVersionChanged)
 		}
 	}
 	if key, err := st.GetSetting(store.SettingHeaderCaptureKey); err != nil || key == "" {
