@@ -53,6 +53,40 @@ func TestGeneratorRandomTypesCharsetsAndExclusions(t *testing.T) {
 	}
 }
 
+func TestGeneratorUUIDVersions(t *testing.T) {
+	for _, version := range []int{4, 7} {
+		value, err := generateValue(GeneratorRule{Type: "uuid", Version: version})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := int(uuid.MustParse(value).Version()); got != version {
+			t.Fatalf("version=%d generated UUID v%d: %s", version, got, value)
+		}
+	}
+}
+
+func TestNumericTimeTemplateKeepsJSONNumberType(t *testing.T) {
+	doc := Document{
+		SchemaVersion: SchemaVersion,
+		Headers: map[string]HeaderRule{
+			"X-Metadata": {Value: map[string]any{"started_at": "{{time_number:unix_ms}}"}},
+		},
+		RemoveHeaders: []string{},
+		Generators:    map[string]GeneratorRule{},
+	}
+	resolved, _, err := (Resolver{Generators: NewGeneratorManager()}).Resolve(1, "", doc, http.Header{}, http.Header{}, time.UnixMilli(1785500416427))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var metadata map[string]any
+	if err := json.Unmarshal([]byte(resolved.Get("X-Metadata")), &metadata); err != nil {
+		t.Fatal(err)
+	}
+	if metadata["started_at"] != float64(1785500416427) {
+		t.Fatalf("numeric time became %T(%v)", metadata["started_at"], metadata["started_at"])
+	}
+}
+
 func TestGeneratorPerRequestMode(t *testing.T) {
 	m := NewGeneratorManager()
 	rule := GeneratorRule{Type: "uuid", Mode: "request"}

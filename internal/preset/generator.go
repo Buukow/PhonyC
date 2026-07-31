@@ -245,6 +245,10 @@ func formatCounter(value *big.Int, width int) string {
 
 func generateValue(rule GeneratorRule) (string, error) {
 	if rule.Type == "uuid" {
+		if rule.Version == 7 {
+			value, err := uuid.NewV7()
+			return value.String(), err
+		}
 		return uuid.NewString(), nil
 	}
 	charsets := map[string]string{

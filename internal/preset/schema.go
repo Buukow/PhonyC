@@ -26,6 +26,7 @@ type HeaderRule struct {
 
 type GeneratorRule struct {
 	Type             string   `json:"type"`
+	Version          int      `json:"version,omitempty"`
 	Charset          string   `json:"charset,omitempty"`
 	Length           int      `json:"length,omitempty"`
 	ExcludeAmbiguous bool     `json:"exclude_ambiguous,omitempty"`
@@ -157,6 +158,9 @@ func validateGenerator(name string, g GeneratorRule) error {
 	if g.Type != "uuid" && g.Type != "random" {
 		return fmt.Errorf("generators.%s.type 必须是 uuid 或 random", name)
 	}
+	if g.Type == "uuid" && g.Version != 0 && g.Version != 4 && g.Version != 7 {
+		return fmt.Errorf("generators.%s.version 必须是 4 或 7", name)
+	}
 	if g.Mode != "request" && g.Mode != "interval" && g.Mode != "increment" && g.Mode != "fixed" {
 		return fmt.Errorf("generators.%s.mode 无效", name)
 	}
@@ -216,6 +220,11 @@ func validateValue(value any, path string, doc Document) error {
 				valid := map[string]bool{"year": true, "month": true, "day": true, "hour": true, "minute": true, "second": true, "millisecond": true, "unix": true, "unix_ms": true}
 				if !valid[strings.TrimPrefix(expr, "time:")] {
 					return fmt.Errorf("%s 包含未知时间变量 %s", path, expr)
+				}
+			case strings.HasPrefix(expr, "time_number:"):
+				valid := map[string]bool{"unix": true, "unix_ms": true}
+				if !valid[strings.TrimPrefix(expr, "time_number:")] {
+					return fmt.Errorf("%s 包含未知数字时间变量 %s", path, expr)
 				}
 			default:
 				return fmt.Errorf("%s 包含未知模板变量 %s", path, expr)

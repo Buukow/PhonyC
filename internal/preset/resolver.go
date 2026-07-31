@@ -76,6 +76,14 @@ func (r Resolver) Resolve(presetID int64, version string, doc Document, client h
 func (r Resolver) resolveValue(presetID int64, version string, value any, client, resolved http.Header, doc Document, req *RequestContext, diff *Diff) (any, error) {
 	switch v := value.(type) {
 	case string:
+		if matches := templateRE.FindStringSubmatch(v); len(matches) == 2 && matches[0] == v && strings.HasPrefix(matches[1], "time_number:") {
+			switch strings.TrimPrefix(matches[1], "time_number:") {
+			case "unix":
+				return req.Now.Unix(), nil
+			case "unix_ms":
+				return req.Now.UnixMilli(), nil
+			}
+		}
 		var resolveErr error
 		result := templateRE.ReplaceAllStringFunc(v, func(token string) string {
 			expr := strings.TrimSuffix(strings.TrimPrefix(token, "{{"), "}}")
