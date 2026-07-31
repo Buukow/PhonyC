@@ -6,9 +6,9 @@ Upgrade client presets from a text-only header map to a versioned structured rul
 
 ## Built-in Client Variants
 
-The system seeds four built-in presets: `codex-tui`, `codex-enhanced`, `claude-cli`, and `claude-enhanced`. The basic variants preserve the original static fingerprints. Enhanced variants are based on headers captured from Codex CLI 0.145.0 and Claude Code 2.1.220 through the local enhanced New API logger.
+The system seeds four built-in presets: `codex-tui`, `codex-enhanced`, `claude-cli`, and `claude-enhanced`. Both basic and enhanced variants use static fingerprints captured from Codex CLI 0.145.0 and Claude Code 2.1.220 through the local enhanced New API logger. Basic variants contain only the core static headers; enhanced variants add correlated dynamic session metadata.
 
-Every enhanced header uses missing-header completion. A client-provided value is preserved; the preset supplies a simulated value only when the header is absent. Authentication, content length, compression, connection, and other protected transport headers are never added by presets.
+Every built-in fingerprint header uses missing-header completion. A client-provided value is preserved; the preset supplies a simulated value only when the header is absent. Authentication, content length, compression, connection, and other protected transport headers are never added by presets.
 
 Codex enhanced identity rules use a shared UUID v7 session generator with a 30-minute interval for `Session-Id`, `Thread-Id`, `X-Client-Request-Id`, `X-Codex-Window-Id`, and the corresponding fields inside `X-Codex-Turn-Metadata`. The installation ID remains fixed for the process lifetime, while each request receives a new UUID v7 turn ID and current millisecond timestamp. Claude enhanced rules use a 30-minute UUID session generator for `X-Claude-Code-Session-Id` and complete the captured Anthropic and Stainless SDK fingerprint headers.
 
@@ -27,7 +27,7 @@ Store the canonical preset rule as one JSON document in a new preset column whil
   "schema_version": 1,
   "headers": {
     "User-Agent": {
-      "value": "codex-tui/{{version}}",
+      "value": "codex_exec/{{version}}",
       "fill_missing": false
     },
     "X-Codex-Turn-Metadata": {

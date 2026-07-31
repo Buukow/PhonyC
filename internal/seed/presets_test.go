@@ -66,6 +66,117 @@ func TestEnsureBuiltinPresetsRefreshesEnhancedRulesOnly(t *testing.T) {
 	}
 }
 
+func TestBasicPresetsUseCapturedFingerprintsAndFillOnlyMissing(t *testing.T) {
+	st, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := EnsureBuiltinPresets(st); err != nil {
+		t.Fatal(err)
+	}
+	checks := []struct {
+		name       string
+		originator string
+		userAgent  string
+	}{
+		{name: "codex-tui", originator: "codex_exec", userAgent: "codex_exec/0.145.0 (Debian 12.0.0; x86_64) dumb (codex_exec; 0.145.0)"},
+		{name: "claude-cli", userAgent: "claude-cli/2.1.220 (external, sdk-cli)"},
+	}
+	for _, tc := range checks {
+		item, err := st.GetPresetByName(tc.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		doc, err := preset.Parse(item.RuleJSON)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resolved, _, err := (preset.Resolver{Generators: preset.NewGeneratorManager()}).Resolve(item.ID, item.VersionLabel, doc, http.Header{}, http.Header{}, time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resolved.Get("User-Agent") != tc.userAgent {
+			t.Fatalf("%s user agent=%q", tc.name, resolved.Get("User-Agent"))
+		}
+		if tc.originator != "" && resolved.Get("Originator") != tc.originator {
+			t.Fatalf("%s originator=%q", tc.name, resolved.Get("Originator"))
+		}
+		client := http.Header{"User-Agent": []string{"client-owned-agent"}}
+		resolved, _, err = (preset.Resolver{Generators: preset.NewGeneratorManager()}).Resolve(item.ID, item.VersionLabel, doc, client, http.Header{}, time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resolved.Get("User-Agent") != "client-owned-agent" {
+			t.Fatalf("%s overwrote client user agent", tc.name)
+		}
+	}
+}
+
+func TestLegacyBasicPresetsMigrateWithoutOverwritingUserEdits(t *testing.T) {
+	st, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	legacyCodex := legacyBuiltinPreset("codex-tui", "OpenAI Codex TUI client fingerprint", "0.145.0", map[string]string{
+		"User-Agent": "codex-tui/{{version}} (Debian 12.0.0; x86_64) xterm-256color (codex-tui; {{version}})", "Originator": "codex-tui", "Accept": "text/event-stream", "Content-Type": "application/json", "X-Codex-Beta-Features": "remote_compaction_v2",
+	})
+	legacyCodex.Builtin = true
+	if _, err := st.CreatePreset(legacyCodex); err != nil {
+		t.Fatal(err)
+	}
+	custom, err := st.CreatePreset(store.PresetInput{Name: "claude-cli", Description: "user edited", VersionLabel: "custom", HeadersJSON: "{}", RemoveHeaders: "[]", RuleJSON: `{"schema_version":1,"headers":{"X-User":{"value":"keep","fill_missing":false}},"remove_headers":[],"generators":{}}`, Builtin: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := EnsureBuiltinPresets(st); err != nil {
+		t.Fatal(err)
+	}
+	codex, _ := st.GetPresetByName("codex-tui")
+	codexDoc, err := preset.Parse(codex.RuleJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if codexDoc.Headers["Originator"].Value != "codex_exec" || !codexDoc.Headers["Originator"].FillMissing {
+		t.Fatalf("legacy codex was not migrated: %+v", codexDoc.Headers["Originator"])
+	}
+	claude, _ := st.GetPreset(custom.ID)
+	if claude.Description != "user edited" || !strings.Contains(claude.RuleJSON, "X-User") {
+		t.Fatalf("user-edited builtin was overwritten: %+v", claude)
+	}
+}
+
+func TestLegacyBasicPresetWithMetadataEditIsPreserved(t *testing.T) {
+	st, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	legacy := legacyBuiltinPreset("codex-tui", "user changed description", "0.145.0", map[string]string{
+		"User-Agent": "codex-tui/{{version}} (Debian 12.0.0; x86_64) xterm-256color (codex-tui; {{version}})", "Originator": "codex-tui", "Accept": "text/event-stream", "Content-Type": "application/json", "X-Codex-Beta-Features": "remote_compaction_v2",
+	})
+	legacy.Builtin = true
+	created, err := st.CreatePreset(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := EnsureBuiltinPresets(st); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := st.GetPreset(created.ID)
+	if got.Description != "user changed description" {
+		t.Fatalf("metadata edit was overwritten: %+v", got)
+	}
+	doc, err := preset.Parse(got.RuleJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Headers["Originator"].Value != "codex-tui" {
+		t.Fatalf("rule was unexpectedly migrated: %+v", doc.Headers["Originator"])
+	}
+}
+
 func TestCodexEnhancedPresetResolvesConsistentIdentity(t *testing.T) {
 	in := codexEnhancedPreset()
 	doc, err := preset.Parse(in.RuleJSON)

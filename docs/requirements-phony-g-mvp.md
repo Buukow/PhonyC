@@ -43,7 +43,7 @@ PhonyG 是一个用 Go 实现的**轻量 AI API 中转网关**：第三方客户
 
 观测到的客户端形态包括：
 
-- **Codex TUI** `codex-tui/0.145.0` → `POST /v1/responses`，特征头：`Originator`、`X-Codex-*`、`Accept: text/event-stream`
+- **Codex CLI** `codex_exec/0.145.0` → `POST /v1/responses`，特征头：`Originator`、`X-Codex-*`、`Accept: text/event-stream`
 - **Claude Code** `claude-cli/2.1.220` → `POST /v1/messages`，特征头：`Anthropic-Version`、`Anthropic-Beta`、`X-App`、`X-Stainless-*`
 - **普通 SDK** → `POST /v1/chat/completions` 等极简头
 
@@ -343,17 +343,17 @@ POST /v1/... + Bearer user_key
 
 ### 5.7 内置预设种子（可编辑）
 
-**codex-tui**（源自日志，值可调）
+**codex-tui**（源自 Codex CLI 0.145.0 日志，值可调）
 
-- `User-Agent`: `codex-tui/{{version}} (Debian 12.0.0; x86_64) xterm-256color (codex-tui; {{version}})`
-- `Originator`: `codex-tui`
+- `User-Agent`: `codex_exec/{{version}} (Debian 12.0.0; x86_64) dumb (codex_exec; {{version}})`
+- `Originator`: `codex_exec`
 - `Accept`: `text/event-stream`
 - 可选静态 `X-Codex-Beta-Features` 等
 - 会话类头：若客户端已有则保留，缺失可生成 UUID（实现时按此默认）
 
 **claude-cli**
 
-- `User-Agent`: `claude-cli/{{version}} (external, cli)`
+- `User-Agent`: `claude-cli/{{version}} (external, sdk-cli)`
 - `X-App`: `cli`
 - `Anthropic-Version`: `2023-06-01`
 - 默认 `Anthropic-Beta` 长串（与抓包对齐，可在管理台改）

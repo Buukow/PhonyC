@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"log"
+	"reflect"
 	"sort"
 
 	"github.com/phonyg/phonyg/internal/healthcheck"
@@ -13,14 +14,14 @@ import (
 )
 
 func EnsureBuiltinPresets(st *store.Store) error {
-	codexHeaders := map[string]string{
+	legacyCodexHeaders := map[string]string{
 		"User-Agent":            "codex-tui/{{version}} (Debian 12.0.0; x86_64) xterm-256color (codex-tui; {{version}})",
 		"Originator":            "codex-tui",
 		"Accept":                "text/event-stream",
 		"Content-Type":          "application/json",
 		"X-Codex-Beta-Features": "remote_compaction_v2",
 	}
-	claudeHeaders := map[string]string{
+	legacyClaudeHeaders := map[string]string{
 		"User-Agent":                  "claude-cli/{{version}} (external, cli)",
 		"X-App":                       "cli",
 		"Anthropic-Version":           "2023-06-01",
@@ -36,20 +37,40 @@ func EnsureBuiltinPresets(st *store.Store) error {
 		"X-Stainless-Retry-Count":     "0",
 		"X-Stainless-Timeout":         "600",
 	}
-	ch, _ := json.Marshal(codexHeaders)
-	cl, _ := json.Marshal(claudeHeaders)
+	codexHeaders := map[string]string{
+		"User-Agent":            "codex_exec/{{version}} (Debian 12.0.0; x86_64) dumb (codex_exec; {{version}})",
+		"Originator":            "codex_exec",
+		"Accept":                "text/event-stream",
+		"Content-Type":          "application/json",
+		"X-Codex-Beta-Features": "remote_compaction_v2",
+	}
+	claudeHeaders := map[string]string{
+		"User-Agent":                  "claude-cli/{{version}} (external, sdk-cli)",
+		"X-App":                       "cli",
+		"Anthropic-Version":           "2023-06-01",
+		"Anthropic-Beta":              "claude-code-20250219,interleaved-thinking-2025-05-14,thinking-token-count-2026-05-13,context-management-2025-06-27,prompt-caching-scope-2026-01-05,mid-conversation-system-2026-04-07,effort-2025-11-24",
+		"Content-Type":                "application/json",
+		"Accept":                      "application/json",
+		"X-Stainless-Arch":            "x64",
+		"X-Stainless-Lang":            "js",
+		"X-Stainless-Os":              "Linux",
+		"X-Stainless-Package-Version": "0.94.0",
+		"X-Stainless-Runtime":         "node",
+		"X-Stainless-Runtime-Version": "v26.3.0",
+		"X-Stainless-Retry-Count":     "0",
+		"X-Stainless-Timeout":         "600",
+	}
+	codexBasic := basicPreset("codex-tui", "OpenAI Codex CLI basic fingerprint", "0.145.0", codexHeaders)
+	claudeBasic := basicPreset("claude-cli", "Anthropic Claude Code CLI basic fingerprint", "2.1.220", claudeHeaders)
+	legacyCodex := legacyBuiltinPreset("codex-tui", "OpenAI Codex TUI client fingerprint", "0.145.0", legacyCodexHeaders)
+	legacyClaude := legacyBuiltinPreset("claude-cli", "Anthropic Claude Code CLI fingerprint", "2.1.220", legacyClaudeHeaders)
 	builtinPresets := []struct {
-		input   store.PresetInput
-		refresh bool
-	}{{input: store.PresetInput{
-		Name: "codex-tui", Description: "OpenAI Codex TUI client fingerprint",
-		VersionLabel: "0.145.0", HeadersJSON: string(ch), RemoveHeaders: "[]", Builtin: true,
-	}}, {input: store.PresetInput{
-		Name: "claude-cli", Description: "Anthropic Claude Code CLI fingerprint",
-		VersionLabel: "2.1.220", HeadersJSON: string(cl), RemoveHeaders: "[]", Builtin: true,
-	}}, {input: codexEnhancedPreset(), refresh: true}, {input: claudeEnhancedPreset(), refresh: true}}
+		input  store.PresetInput
+		legacy *store.PresetInput
+		force  bool
+	}{{input: codexBasic, legacy: &legacyCodex}, {input: claudeBasic, legacy: &legacyClaude}, {input: codexEnhancedPreset(), force: true}, {input: claudeEnhancedPreset(), force: true}}
 	for _, item := range builtinPresets {
-		if err := ensureBuiltinPreset(st, item.input, item.refresh); err != nil {
+		if err := ensureBuiltinPreset(st, item.input, item.legacy, item.force); err != nil {
 			return err
 		}
 	}
@@ -106,10 +127,10 @@ func EnsureBuiltinPresets(st *store.Store) error {
 	return nil
 }
 
-func ensureBuiltinPreset(st *store.Store, in store.PresetInput, refresh bool) error {
+func ensureBuiltinPreset(st *store.Store, in store.PresetInput, legacy *store.PresetInput, force bool) error {
 	current, err := st.GetPresetByName(in.Name)
 	if err == nil {
-		if refresh && current.Builtin {
+		if current.Builtin && (force || (legacy != nil && builtinPresetMatches(current, *legacy))) {
 			_, err = st.UpdatePreset(current.ID, in)
 		}
 		return err
@@ -119,6 +140,38 @@ func ensureBuiltinPreset(st *store.Store, in store.PresetInput, refresh bool) er
 	}
 	_, err = st.UpsertBuiltinPreset(in)
 	return err
+}
+
+func basicPreset(name, description, version string, headers map[string]string) store.PresetInput {
+	doc := preset.Document{SchemaVersion: preset.SchemaVersion, Headers: map[string]preset.HeaderRule{}, RemoveHeaders: []string{}, Generators: map[string]preset.GeneratorRule{}}
+	for header, value := range headers {
+		doc.Headers[header] = preset.HeaderRule{Value: value, FillMissing: true}
+	}
+	raw, _ := json.Marshal(headers)
+	return store.PresetInput{Name: name, Description: description, VersionLabel: version, HeadersJSON: string(raw), RemoveHeaders: "[]", RuleJSON: preset.Marshal(doc), Builtin: true}
+}
+
+func legacyBuiltinPreset(name, description, version string, headers map[string]string) store.PresetInput {
+	raw, _ := json.Marshal(headers)
+	doc, _ := preset.LegacyDocument(string(raw), "[]")
+	return store.PresetInput{Name: name, Description: description, VersionLabel: version, HeadersJSON: string(raw), RemoveHeaders: "[]", RuleJSON: preset.Marshal(doc), Builtin: true}
+}
+
+func builtinPresetMatches(current *store.ClientPreset, legacy store.PresetInput) bool {
+	if current.Description != legacy.Description || current.VersionLabel != legacy.VersionLabel || current.RemoveHeaders != legacy.RemoveHeaders {
+		return false
+	}
+	var currentHeaders, legacyHeaders map[string]string
+	if json.Unmarshal([]byte(current.HeadersJSON), &currentHeaders) != nil ||
+		json.Unmarshal([]byte(legacy.HeadersJSON), &legacyHeaders) != nil || !reflect.DeepEqual(currentHeaders, legacyHeaders) {
+		return false
+	}
+	if current.RuleJSON != "" {
+		currentDoc, currentErr := preset.Parse(current.RuleJSON)
+		legacyDoc, legacyErr := preset.Parse(legacy.RuleJSON)
+		return currentErr == nil && legacyErr == nil && reflect.DeepEqual(currentDoc, legacyDoc)
+	}
+	return true
 }
 
 func codexEnhancedPreset() store.PresetInput {
