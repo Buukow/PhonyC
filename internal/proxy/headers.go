@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/phonyg/phonyg/internal/preset"
 	"github.com/phonyg/phonyg/internal/protocol"
 	"github.com/phonyg/phonyg/internal/snapshot"
 	"github.com/phonyg/phonyg/internal/store"
@@ -62,6 +64,19 @@ func BuildUpstreamHeaders(client http.Header, ch store.Channel, key store.UserKe
 		var remove []string
 		if mode == "preset" && key.PresetID != nil {
 			if p := snap.PresetByID[*key.PresetID]; p != nil {
+				if strings.TrimSpace(p.RuleJSON) != "" {
+					doc, err := preset.Parse(p.RuleJSON)
+					if err == nil {
+						resolved, _, resolveErr := (preset.Resolver{}).Resolve(p.ID, p.VersionLabel, doc, client, out, time.Now())
+						if resolveErr == nil {
+							if contentLength >= 0 {
+								resolved.Set("Content-Length", strconv.FormatInt(contentLength, 10))
+							}
+							resolved.Del("Accept-Encoding")
+							return resolved
+						}
+					}
+				}
 				tmpl = renderTemplateMap(parseHeaderMap(p.HeadersJSON), p.VersionLabel)
 				_ = json.Unmarshal([]byte(p.RemoveHeaders), &remove)
 			}

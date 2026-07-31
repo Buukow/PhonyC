@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS client_presets (
   version_label TEXT NOT NULL DEFAULT '',
   headers_json TEXT NOT NULL DEFAULT '{}',
   remove_headers TEXT NOT NULL DEFAULT '[]',
+  rule_json TEXT NOT NULL DEFAULT '',
   builtin INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -179,6 +180,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
 		`ALTER TABLE request_meta ADD COLUMN total_tokens INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE request_meta ADD COLUMN cached_tokens INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE request_meta ADD COLUMN reasoning_tokens INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE client_presets ADD COLUMN rule_json TEXT NOT NULL DEFAULT ''`,
 	}
 	for _, q := range alters {
 		_, _ = s.db.Exec(q) // ignore duplicate column errors

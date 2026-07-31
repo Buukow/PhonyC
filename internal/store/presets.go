@@ -7,7 +7,7 @@ import (
 )
 
 func (s *Store) ListPresets() ([]ClientPreset, error) {
-	rows, err := s.db.Query(`SELECT id, name, description, version_label, headers_json, remove_headers, builtin, created_at, updated_at FROM client_presets ORDER BY builtin DESC, id ASC`)
+	rows, err := s.db.Query(`SELECT id, name, description, version_label, headers_json, remove_headers, rule_json, builtin, created_at, updated_at FROM client_presets ORDER BY builtin DESC, id ASC`)
 	if err != nil {
 		return nil, err
 	}
@@ -24,12 +24,12 @@ func (s *Store) ListPresets() ([]ClientPreset, error) {
 }
 
 func (s *Store) GetPreset(id int64) (*ClientPreset, error) {
-	row := s.db.QueryRow(`SELECT id, name, description, version_label, headers_json, remove_headers, builtin, created_at, updated_at FROM client_presets WHERE id=?`, id)
+	row := s.db.QueryRow(`SELECT id, name, description, version_label, headers_json, remove_headers, rule_json, builtin, created_at, updated_at FROM client_presets WHERE id=?`, id)
 	return scanPreset(row)
 }
 
 func (s *Store) GetPresetByName(name string) (*ClientPreset, error) {
-	row := s.db.QueryRow(`SELECT id, name, description, version_label, headers_json, remove_headers, builtin, created_at, updated_at FROM client_presets WHERE name=?`, name)
+	row := s.db.QueryRow(`SELECT id, name, description, version_label, headers_json, remove_headers, rule_json, builtin, created_at, updated_at FROM client_presets WHERE name=?`, name)
 	return scanPreset(row)
 }
 
@@ -37,7 +37,7 @@ func scanPreset(row *sql.Row) (*ClientPreset, error) {
 	var p ClientPreset
 	var bi int
 	var cAt, uAt string
-	if err := row.Scan(&p.ID, &p.Name, &p.Description, &p.VersionLabel, &p.HeadersJSON, &p.RemoveHeaders, &bi, &cAt, &uAt); err != nil {
+	if err := row.Scan(&p.ID, &p.Name, &p.Description, &p.VersionLabel, &p.HeadersJSON, &p.RemoveHeaders, &p.RuleJSON, &bi, &cAt, &uAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
@@ -53,7 +53,7 @@ func scanPresetRows(rows *sql.Rows) (*ClientPreset, error) {
 	var p ClientPreset
 	var bi int
 	var cAt, uAt string
-	if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.VersionLabel, &p.HeadersJSON, &p.RemoveHeaders, &bi, &cAt, &uAt); err != nil {
+	if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.VersionLabel, &p.HeadersJSON, &p.RemoveHeaders, &p.RuleJSON, &bi, &cAt, &uAt); err != nil {
 		return nil, err
 	}
 	p.Builtin = intToBool(bi)
@@ -68,6 +68,7 @@ type PresetInput struct {
 	VersionLabel  string `json:"version_label"`
 	HeadersJSON   string `json:"headers_json"`
 	RemoveHeaders string `json:"remove_headers"`
+	RuleJSON      string `json:"rule_json"`
 	Builtin       bool   `json:"builtin"`
 }
 
@@ -81,8 +82,8 @@ func (s *Store) CreatePreset(in PresetInput) (*ClientPreset, error) {
 	if strings.TrimSpace(rh) == "" {
 		rh = "[]"
 	}
-	res, err := s.db.Exec(`INSERT INTO client_presets(name, description, version_label, headers_json, remove_headers, builtin, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?)`,
-		in.Name, in.Description, in.VersionLabel, hj, rh, boolToInt(in.Builtin), now, now)
+	res, err := s.db.Exec(`INSERT INTO client_presets(name, description, version_label, headers_json, remove_headers, rule_json, builtin, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?)`,
+		in.Name, in.Description, in.VersionLabel, hj, rh, in.RuleJSON, boolToInt(in.Builtin), now, now)
 	if err != nil {
 		return nil, err
 	}
@@ -108,29 +109,42 @@ func (s *Store) UpdatePreset(id int64, in PresetInput) (*ClientPreset, error) {
 	if err != nil {
 		return nil, err
 	}
-	if in.Name != "" {
+	ruleOnly := in.RuleJSON != "" && in.Name == "" && in.Description == "" && in.VersionLabel == "" && in.HeadersJSON == "" && in.RemoveHeaders == ""
+	if ruleOnly {
+		cur.RuleJSON = in.RuleJSON
+	} else if in.Name != "" {
 		cur.Name = in.Name
-	}
-	if in.Description != "" || in.Description == "" && in.HeadersJSON != "" {
-		// allow empty description only when other fields provided via explicit set below
-	}
-	// always apply provided fields
-	if in.Name != "" {
-		cur.Name = in.Name
-	}
-	cur.Description = in.Description
-	if in.VersionLabel != "" {
-		cur.VersionLabel = in.VersionLabel
-	}
-	if in.HeadersJSON != "" {
-		cur.HeadersJSON = in.HeadersJSON
-	}
-	if in.RemoveHeaders != "" {
-		cur.RemoveHeaders = in.RemoveHeaders
+		cur.Description = in.Description
+		if in.VersionLabel != "" {
+			cur.VersionLabel = in.VersionLabel
+		}
+		if in.HeadersJSON != "" {
+			cur.HeadersJSON = in.HeadersJSON
+		}
+		if in.RemoveHeaders != "" {
+			cur.RemoveHeaders = in.RemoveHeaders
+		}
+		if in.RuleJSON != "" {
+			cur.RuleJSON = in.RuleJSON
+		}
+	} else {
+		cur.Description = in.Description
+		if in.VersionLabel != "" {
+			cur.VersionLabel = in.VersionLabel
+		}
+		if in.HeadersJSON != "" {
+			cur.HeadersJSON = in.HeadersJSON
+		}
+		if in.RemoveHeaders != "" {
+			cur.RemoveHeaders = in.RemoveHeaders
+		}
+		if in.RuleJSON != "" {
+			cur.RuleJSON = in.RuleJSON
+		}
 	}
 	now := formatTime(nowUTC())
-	_, err = s.db.Exec(`UPDATE client_presets SET name=?, description=?, version_label=?, headers_json=?, remove_headers=?, updated_at=? WHERE id=?`,
-		cur.Name, cur.Description, cur.VersionLabel, cur.HeadersJSON, cur.RemoveHeaders, now, id)
+	_, err = s.db.Exec(`UPDATE client_presets SET name=?, description=?, version_label=?, headers_json=?, remove_headers=?, rule_json=?, updated_at=? WHERE id=?`,
+		cur.Name, cur.Description, cur.VersionLabel, cur.HeadersJSON, cur.RemoveHeaders, cur.RuleJSON, now, id)
 	if err != nil {
 		return nil, err
 	}

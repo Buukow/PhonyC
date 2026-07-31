@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/phonyg/phonyg/internal/healthcheck"
+	"github.com/phonyg/phonyg/internal/preset"
 	"github.com/phonyg/phonyg/internal/store"
 )
 
@@ -83,6 +84,21 @@ func EnsureBuiltinPresets(st *store.Store) error {
 	}
 	if key, err := st.GetSetting(store.SettingHeaderCaptureKey); err != nil || key == "" {
 		_ = st.SetSetting(store.SettingHeaderCaptureKey, "sk-phonyg-capture-"+randomHex(12))
+	}
+	if presets, err := st.ListPresets(); err == nil {
+		for _, item := range presets {
+			if item.RuleJSON != "" {
+				continue
+			}
+			doc, migrateErr := preset.LegacyDocument(item.HeadersJSON, item.RemoveHeaders)
+			if migrateErr != nil {
+				log.Printf("client preset %d legacy migration skipped: %v", item.ID, migrateErr)
+				continue
+			}
+			if _, updateErr := st.UpdatePreset(item.ID, store.PresetInput{RuleJSON: preset.Marshal(doc)}); updateErr != nil {
+				return updateErr
+			}
+		}
 	}
 	return nil
 }

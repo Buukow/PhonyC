@@ -66,6 +66,7 @@ type ClientPreset struct {
 	VersionLabel  string    `json:"version_label"`
 	HeadersJSON   string    `json:"headers_json"`
 	RemoveHeaders string    `json:"remove_headers"` // JSON array
+	RuleJSON      string    `json:"rule_json"`
 	Builtin       bool      `json:"builtin"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`

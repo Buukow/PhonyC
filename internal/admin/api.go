@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/phonyg/phonyg/internal/capture"
 	"github.com/phonyg/phonyg/internal/healthcheck"
+	"github.com/phonyg/phonyg/internal/preset"
 	"github.com/phonyg/phonyg/internal/snapshot"
 	"github.com/phonyg/phonyg/internal/store"
 	"github.com/phonyg/phonyg/internal/upstream"
@@ -64,6 +65,9 @@ func (a *API) Register(r *gin.Engine) {
 	authz.GET("/presets/:id", a.getPreset)
 	authz.PATCH("/presets/:id", a.updatePreset)
 	authz.DELETE("/presets/:id", a.deletePreset)
+	authz.POST("/presets/validate", a.validatePreset)
+	authz.POST("/presets/preview", a.previewPreset)
+	authz.POST("/presets/:id/generators/:name/refresh", a.refreshPresetGenerator)
 
 	authz.GET("/logs", a.listLogs)
 	authz.GET("/dashboard/summary", a.dashboard)
@@ -531,6 +535,10 @@ func (a *API) createPreset(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "name required"})
 		return
 	}
+	if err := normalizePresetInput(&in); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
 	p, err := a.Store.CreatePreset(in)
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -557,13 +565,113 @@ func (a *API) updatePreset(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "invalid body"})
 		return
 	}
+	cur, err := a.Store.GetPreset(id)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "not found"})
+		return
+	}
+	if cur.Builtin {
+		c.JSON(400, gin.H{"error": "内置预设不能直接覆盖，请另存为新预设"})
+		return
+	}
+	if err := normalizePresetInput(&in); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
 	p, err := a.Store.UpdatePreset(id, in)
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 	a.reload()
+	preset.DefaultGenerators.ResetPreset(id)
 	c.JSON(200, p)
+}
+
+func normalizePresetInput(in *store.PresetInput) error {
+	if strings.TrimSpace(in.RuleJSON) == "" {
+		doc, err := preset.LegacyDocument(in.HeadersJSON, in.RemoveHeaders)
+		if err != nil {
+			return err
+		}
+		in.RuleJSON = preset.Marshal(doc)
+		return nil
+	}
+	normalized, _, err := preset.Normalize(in.RuleJSON)
+	if err != nil {
+		return err
+	}
+	in.RuleJSON = normalized
+	return nil
+}
+
+func (a *API) validatePreset(c *gin.Context) {
+	var req struct {
+		RuleJSON string `json:"rule_json"`
+	}
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "invalid body"})
+		return
+	}
+	normalized, _, err := preset.Normalize(req.RuleJSON)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"rule_json": normalized})
+}
+
+func (a *API) previewPreset(c *gin.Context) {
+	var req struct {
+		RuleJSON      string            `json:"rule_json"`
+		VersionLabel  string            `json:"version_label"`
+		ClientHeaders map[string]string `json:"client_headers"`
+	}
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "invalid body"})
+		return
+	}
+	doc, err := preset.Parse(req.RuleJSON)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	client := http.Header{}
+	for key, value := range req.ClientHeaders {
+		client.Set(key, value)
+	}
+	resolved, diff, err := (preset.Resolver{Generators: preset.NewGeneratorManager()}).Resolve(0, req.VersionLabel, doc, client, http.Header{}, time.Now())
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"headers": resolved, "diff": diff})
+}
+
+func (a *API) refreshPresetGenerator(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	p, err := a.Store.GetPreset(id)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "not found"})
+		return
+	}
+	doc, err := preset.Parse(p.RuleJSON)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	name := c.Param("name")
+	rule, ok := doc.Generators[name]
+	if !ok {
+		c.JSON(404, gin.H{"error": "generator not found"})
+		return
+	}
+	value, err := preset.DefaultGenerators.Refresh(id, name, rule)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"ok": true, "value": value})
 }
 
 func (a *API) deletePreset(c *gin.Context) {
@@ -572,6 +680,7 @@ func (a *API) deletePreset(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
+	preset.DefaultGenerators.ResetPreset(id)
 	a.reload()
 	c.JSON(200, gin.H{"ok": true})
 }
