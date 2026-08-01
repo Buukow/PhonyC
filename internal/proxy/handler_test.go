@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/phonyg/phonyg/internal/capture"
@@ -218,6 +219,28 @@ func TestCaptureAnyModelSuccessShape(t *testing.T) {
 	choices, _ := resp["choices"].([]any)
 	if len(choices) == 0 {
 		t.Fatalf("no choices: %v", resp)
+	}
+	var logs []store.RequestMeta
+	var total int
+	for i := 0; i < 100; i++ {
+		logs, total, err = st.ListRequestMeta(store.LogFilter{Path: "/v1/chat/completions", Limit: 10})
+		if err == nil && total == 1 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if err != nil {
+		t.Fatalf("list request metadata: %v", err)
+	}
+	if total != 1 || len(logs) != 1 {
+		t.Fatalf("request metadata rows: total=%d rows=%d", total, len(logs))
+	}
+	meta := logs[0]
+	if meta.StatusCode != 200 || meta.ErrorSummary != "" ||
+		meta.ClientModel != "totally-unknown-model-xyz" || meta.UpstreamModel != "" ||
+		meta.ChannelID != nil || meta.UserKeyID != nil || meta.Method != "POST" ||
+		meta.ImpersonationMode != "passthrough" {
+		t.Fatalf("unexpected capture metadata: %+v", meta)
 	}
 }
 

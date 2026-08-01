@@ -17,8 +17,8 @@ The metadata will use:
 - `client_model` from the request body, falling back to `phonyg-capture`.
 - Empty `upstream_model` and `channel_id = NULL`, because no upstream request
   is made.
-- `error_summary = "capture-only"` to distinguish the local capture event in
-  the existing log table and filters.
+- Empty `error_summary`, so successful capture-only requests do not count
+  toward error-rate aggregates or appear in the recent-errors list.
 - `impersonation_mode = "passthrough"` for the synthetic capture key.
 - Zero token counts and the measured local request duration.
 - The authenticated capture key is not associated with a user-key ID, so the

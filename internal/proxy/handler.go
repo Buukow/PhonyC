@@ -114,7 +114,7 @@ func (h *Handler) Handle(c *gin.Context) {
 
 	// capture-only mode: armed system key never enters routing (3.1 B+C)
 	if userKey.Name == "header-capture" {
-		h.handleCaptureOnly(c, reqID, path)
+		h.handleCaptureOnly(c, reqID, path, start)
 		return
 	}
 
@@ -357,7 +357,7 @@ func (h *Handler) finishProxyResponse(c *gin.Context, reqID string, userKey *sto
 	h.stats(userKey.ID, resp.StatusCode >= 400)
 }
 
-func (h *Handler) handleCaptureOnly(c *gin.Context, reqID, path string) {
+func (h *Handler) handleCaptureOnly(c *gin.Context, reqID, path string, start time.Time) {
 	model := ""
 	var bodyBytes []byte
 	// optional peek model from body for non-GET; never reject on model name
@@ -377,6 +377,7 @@ func (h *Handler) handleCaptureOnly(c *gin.Context, reqID, path string) {
 	if h.Capture != nil {
 		captured = h.Capture.TryCapture(c.Request, model)
 	}
+	h.logMeta(reqID, nil, model, "", nil, c.Request.Method, path, http.StatusOK, 0, time.Since(start), "", "passthrough", usage.Tokens{})
 	msg := "【PhonyG 请求捕获】捕获成功：已记录客户端请求头，未转发上游。可在管理台「请求捕获」查看并一键保存为预设。"
 	if !captured {
 		msg = "【PhonyG 请求捕获】当前未布防或未捕获到新请求（可能已捕获过）。请在管理台重新布防后再试。请求仍返回成功，未转发上游。"
