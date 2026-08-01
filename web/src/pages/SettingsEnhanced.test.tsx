@@ -33,8 +33,13 @@ describe('enhanced healthcheck settings', () => {
     expect(editor.value).toBe(defaultLexicon)
     expect(screen.getByText(/schema_version 由系统维护/)).toBeTruthy()
     expect(screen.getByText('增强模式开启时不使用此固定提问词。')).toBeTruthy()
+    const previewButton = screen.getByRole('button', { name: '随机预览' })
+    expect(previewButton.className).toContain('border')
+    expect(screen.getByRole('button', { name: '随机预览说明' })).toBeTruthy()
+    expect(screen.getByRole('tooltip').textContent).toContain('为什么预览句子有时读起来不够自然？')
+    expect(screen.queryByText('在首次请求失败后，最多再重试的次数（默认 2）。')).toBeNull()
 
-    await user.click(screen.getByRole('button', { name: '随机预览' }))
+    await user.click(previewButton)
     expect(await screen.findByText('简单介绍docker')).toBeTruthy()
 
     await user.clear(editor)

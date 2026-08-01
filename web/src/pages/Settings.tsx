@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { CircleHelp } from 'lucide-react'
 import { api } from '@/lib/api'
 import { Badge, Button, Card, Input, Label, PageHeader, Textarea } from '@/components/ui'
 
@@ -131,9 +132,21 @@ export default function SettingsPage() {
                   <p className="mt-1 text-[11px] text-gray-400">schema_version 由系统维护，保存时会自动更新。</p>
                   {lexiconError && <p className="text-xs text-warn mt-1">{lexiconError}</p>}
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" variant="secondary" onClick={() => updateLexicon(defaultLexicon)}>恢复默认词库</Button>
-                  <Button type="button" variant="ghost" onClick={previewEnhanced}>随机预览</Button>
+                  <Button type="button" variant="secondary" onClick={previewEnhanced}>随机预览</Button>
+                  <div className="group relative inline-flex">
+                    <button
+                      type="button"
+                      aria-label="随机预览说明"
+                      className="rounded-full text-gray-400 transition-colors hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    >
+                      <CircleHelp className="h-5 w-5" />
+                    </button>
+                    <div role="tooltip" className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-72 -translate-x-1/2 rounded-xl border border-gray-100 bg-white p-3 text-xs leading-5 text-gray-600 shadow-card group-hover:block group-focus-within:block">
+                      为什么预览句子有时读起来不够自然？为降低固定特征被识别的概率，系统会随机组合正常语序与倒装语序，并随机添加语气词和标点符号，因此部分句子可能会显得不够通顺。这些变化仅用于模拟更自然、更多样的请求特征。
+                    </div>
+                  </div>
                 </div>
                 {preview && <div className="rounded-xl bg-white px-3 py-2 text-sm text-gray-700"><span className="text-gray-400">预览：</span>{preview}</div>}
               </div>
@@ -214,7 +227,6 @@ export default function SettingsPage() {
                   value={settings.auto_retry_max || '2'}
                   onChange={(e) => setSettings({ ...settings, auto_retry_max: e.target.value })}
                 />
-                <p className="text-[11px] text-gray-400 mt-1">在首次请求失败后，最多再重试的次数（默认 2）。</p>
               </div>
               <div>
                 <Label>触发重试的状态码（逗号分隔）</Label>

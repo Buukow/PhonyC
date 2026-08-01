@@ -7,6 +7,29 @@ type PresetDoc = { schema_version: number; headers: Record<string, NodeRule>; re
 
 const emptyDoc: PresetDoc = { schema_version: 1, headers: {}, remove_headers: [], generators: {} }
 
+const builtinDisplay: Record<string, { name: string; description: string }> = {
+  'codex-tui': {
+    name: 'Codex 基础',
+    description: '模拟 Codex 客户端的基础请求头',
+  },
+  'claude-cli': {
+    name: 'Claude 基础',
+    description: '模拟 Claude Code 客户端的基础请求头',
+  },
+  'codex-enhanced': {
+    name: 'Codex 增强',
+    description: '模拟 Codex 客户端的完整请求头与动态会话信息，可能会导致某些问题发生',
+  },
+  'claude-enhanced': {
+    name: 'Claude 增强',
+    description: '模拟 Claude Code 客户端的完整请求头与动态会话信息，可能会导致某些问题发生',
+  },
+}
+
+function presetDisplay(preset: any) {
+  return preset.builtin ? builtinDisplay[preset.name] || { name: preset.name, description: preset.description } : { name: preset.name, description: preset.description }
+}
+
 function legacyToDoc(p: any): PresetDoc {
   try {
     if (p.rule_json) return JSON.parse(p.rule_json)
@@ -257,7 +280,10 @@ export default function Presets() {
       <PageHeader title="客户端预设" subtitle="Codex / Claude Code 等指纹模板，可视化编辑或 JSON 编辑" actions={<Button onClick={() => { setCreating(true); setEditing(null) }}>新建预设</Button>} />
       {(creating || editing) && <PresetEditor initial={editing} onClose={() => { setCreating(false); setEditing(null) }} onSaved={load} />}
       <Card className="p-2"><Table headers={['名称', '版本', '类型', '描述', '操作']}>
-        {items.map((p) => <tr key={p.id} className="border-b border-gray-50 hover:bg-canvas"><td className="px-4 py-3 font-medium">{p.name}</td><td className="px-4 py-3">{p.version_label}</td><td className="px-4 py-3">{p.builtin ? <Badge>内置</Badge> : <Badge tone="muted">自定义</Badge>}</td><td className="px-4 py-3 text-gray-500">{p.description}</td><td className="px-4 py-3 space-x-2"><Button variant="ghost" onClick={() => { setEditing(p); setCreating(false) }}>编辑</Button>{!p.builtin && <Button variant="danger" onClick={() => remove(p.id)}>删除</Button>}</td></tr>)}
+        {items.map((p) => {
+          const display = presetDisplay(p)
+          return <tr key={p.id} className="border-b border-gray-50 hover:bg-canvas"><td className="px-4 py-3 font-medium">{display.name}</td><td className="px-4 py-3">{p.version_label}</td><td className="px-4 py-3">{p.builtin ? <Badge>内置</Badge> : <Badge tone="muted">自定义</Badge>}</td><td className="px-4 py-3 text-gray-500">{display.description}</td><td className="px-4 py-3 space-x-2"><Button variant="ghost" onClick={() => { setEditing(p); setCreating(false) }}>编辑</Button>{!p.builtin && <Button variant="danger" onClick={() => remove(p.id)}>删除</Button>}</td></tr>
+        })}
       </Table></Card>
     </div>
   )

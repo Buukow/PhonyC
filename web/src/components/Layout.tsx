@@ -71,7 +71,7 @@ export default function Layout() {
         <header className="sticky top-0 z-20 h-14 flex items-center px-6 md:px-8 bg-canvas/80 backdrop-blur-md border-b border-gray-200/50">
           <div className="text-sm text-gray-400 flex items-center gap-2">
             <Activity className="w-4 h-4" />
-            PhonyG Gateway
+            Phony Gateway
           </div>
         </header>
         <main className="p-6 md:p-8">
