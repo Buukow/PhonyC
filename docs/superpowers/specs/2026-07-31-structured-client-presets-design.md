@@ -8,7 +8,7 @@ Upgrade client presets from a text-only header map to a versioned structured rul
 
 The system seeds four built-in presets: `codex-tui`, `codex-enhanced`, `claude-cli`, and `claude-enhanced`. Both basic and enhanced variants use static fingerprints captured from Codex CLI 0.145.0 and Claude Code 2.1.220 through the local enhanced New API logger. Basic variants contain only the core static headers; enhanced variants add correlated dynamic session metadata.
 
-Every built-in fingerprint header uses missing-header completion. A client-provided value is preserved; the preset supplies a simulated value only when the header is absent. Authentication, content length, compression, connection, and other protected transport headers are never added by presets.
+Every built-in fingerprint header uses force override. A client-provided value is replaced by the preset value so the selected preset consistently simulates the real client fingerprint. Authentication, content length, compression, connection, and other protected transport headers are never added by presets.
 
 Codex enhanced identity rules use a shared UUID v7 session generator with a 30-minute interval for `Session-Id`, `Thread-Id`, `X-Client-Request-Id`, `X-Codex-Window-Id`, and the corresponding fields inside `X-Codex-Turn-Metadata`. The installation ID remains fixed for the process lifetime, while each request receives a new UUID v7 turn ID and current millisecond timestamp. Claude enhanced rules use a 30-minute UUID session generator for `X-Claude-Code-Session-Id` and complete the captured Anthropic and Stainless SDK fingerprint headers.
 
@@ -51,16 +51,18 @@ Store the canonical preset rule as one JSON document in a new preset column whil
 
 Header names are matched case-insensitively and emitted with the configured canonical spelling. Header values may be strings, numbers, booleans, null, arrays, or objects in the editor. Non-string values are serialized as compact JSON when written to an HTTP Header.
 
-## Missing Completion
+## Override Mode
 
-The checkbox label is `缺失补全`.
+Every Header and nested field uses a two-state button switch. The left position
+is `缺失补全` (`fill_missing: true`) and the right/default position is
+`强制覆盖` (`fill_missing: false`).
 
 For a top-level Header rule:
 
-| 缺失补全 | Client Header exists | Client Header missing |
+| Mode | Client Header exists | Client Header missing |
 |---|---|---|
-| Checked | Preserve the original client value | Add the resolved preset value |
-| Unchecked | Replace with the resolved preset value | Add the resolved preset value |
+| 缺失补全（左） | Preserve the original client value | Add the resolved preset value |
+| 强制覆盖（右） | Replace with the resolved preset value | Add the resolved preset value |
 
 For a JSON-object Header, child paths apply the same rule independently after the client Header is parsed as JSON:
 
@@ -69,12 +71,12 @@ For a JSON-object Header, child paths apply the same rule independently after th
 - A parent Header that is completely absent is constructed from the preset value and included.
 - Arrays are tree-editable, but `缺失补全` applies to array elements by numeric index. Existing indices are preserved when checked; missing indices are filled. The editor must clearly display array indices.
 
-Parent/child checkbox interaction is deliberately not tri-state:
-
-- Checking a parent selects every descendant.
-- A descendant may then be unchecked independently without changing the parent checkbox.
-- Unchecking a parent clears every descendant.
-- Reloading reproduces the explicitly stored parent and child selections exactly.
+The parent switch defines the inherited default for descendants. A child with
+no entry in `children_fill_missing` displays `继承：强制覆盖` or
+`继承：缺失补全`. Switching a child creates an explicit entry that takes
+priority over the parent. `恢复继承` removes that entry. Changing a parent does
+not delete explicit child settings. When explicit descendants differ from the
+parent, the parent row displays `含自定义子项`.
 
 Client JSON Header parse failures are outside the first-release special-handling scope. Resolution returns a clear request error rather than silently generating a contradictory partial value.
 
@@ -184,7 +186,7 @@ Visual mode supports:
 - Add Header, object field, and array element.
 - Delete and rename nodes.
 - Select value type and edit the typed value.
-- `缺失补全` checkbox on every Header and nested field.
+- Two-state `缺失补全 / 强制覆盖` button switch on every Header and nested field, with inherited child-state display and a `恢复继承` action.
 - Generator list with create, edit, delete, manual refresh, current masked/unmasked value, generated time, and next refresh time where applicable.
 - Template-variable insertion menu for version, client Header, resolved Header, generator, and time expressions.
 - Inline errors attached to exact nodes.
