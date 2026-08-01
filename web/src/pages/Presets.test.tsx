@@ -75,8 +75,8 @@ describe('preset visual tree editor', () => {
     expect(screen.getByText('Claude 增强')).toBeTruthy()
     expect(screen.getByText('模拟 Codex 客户端的基础请求头')).toBeTruthy()
     expect(screen.getByText('模拟 Claude Code 客户端的基础请求头')).toBeTruthy()
-    expect(screen.getByText('模拟 Codex 客户端的完整请求头与动态会话信息，可能会导致某些问题发生')).toBeTruthy()
-    expect(screen.getByText('模拟 Claude Code 客户端的完整请求头与动态会话信息，可能会导致某些问题发生')).toBeTruthy()
+    expect(screen.getByText('模拟 Codex 客户端的完整请求头与动态会话信息，强制覆盖同名请求头')).toBeTruthy()
+    expect(screen.getByText('模拟 Claude Code 客户端的完整请求头与动态会话信息，强制覆盖同名请求头')).toBeTruthy()
     expect(screen.getByText('custom-name')).toBeTruthy()
     expect(screen.getByText('custom description')).toBeTruthy()
   })
@@ -110,27 +110,35 @@ describe('preset visual tree editor', () => {
     expect(input.value).toBe('1.0.1')
   })
 
-  it('propagates parent fill state without changing the parent from a child edit', async () => {
+  it('supports inherited and explicit child override modes', async () => {
     const user = await openEditor()
-    const rootCheckbox = within(rowFor('X-Test')).getByRole('checkbox') as HTMLInputElement
-    const sessionCheckbox = within(rowFor('session')).getByRole('checkbox') as HTMLInputElement
+    const rootSwitch = within(rowFor('X-Test')).getByRole('switch')
+    const sessionSwitch = within(rowFor('session')).getByRole('switch')
 
-    await user.click(rootCheckbox)
-    expect(rootCheckbox.checked).toBe(true)
-    expect(sessionCheckbox.checked).toBe(true)
+    expect(within(rowFor('X-Test')).getByText('强制覆盖')).toBeTruthy()
+    await user.click(rootSwitch)
+    expect(within(rowFor('X-Test')).getByText('缺失补全')).toBeTruthy()
+    expect(within(rowFor('session')).getByText('继承：缺失补全')).toBeTruthy()
 
     await user.click(within(rowFor('session')).getByRole('button', { name: '展开' }))
-    const idCheckbox = within(rowFor('id')).getByRole('checkbox') as HTMLInputElement
-    expect(idCheckbox.checked).toBe(true)
+    const idSwitch = within(rowFor('id')).getByRole('switch')
+    expect(within(rowFor('id')).getByText('继承：缺失补全')).toBeTruthy()
 
-    await user.click(idCheckbox)
-    expect(idCheckbox.checked).toBe(false)
-    expect(rootCheckbox.checked).toBe(true)
+    await user.click(idSwitch)
+    expect(within(rowFor('id')).getByText('强制覆盖')).toBeTruthy()
+    expect(within(rowFor('id')).getByRole('button', { name: '恢复继承' })).toBeTruthy()
 
-    await user.click(rootCheckbox)
-    expect(rootCheckbox.checked).toBe(false)
-    expect(sessionCheckbox.checked).toBe(false)
-    expect(idCheckbox.checked).toBe(false)
+    await user.click(within(rowFor('id')).getByRole('button', { name: '恢复继承' }))
+    expect(within(rowFor('id')).getByText('继承：缺失补全')).toBeTruthy()
+  })
+
+  it('defaults newly added headers to force override', async () => {
+    useDefaultAPI()
+    const user = userEvent.setup()
+    render(<Presets />)
+    await user.click(await screen.findByRole('button', { name: '新建预设' }))
+    await user.click(screen.getByRole('button', { name: '添加 Header' }))
+    expect(screen.getByRole('switch', { name: /New-Header 强制覆盖/ })).toBeTruthy()
   })
 
   it('keeps pasted JSON when a new preset switches to visual mode before saving', async () => {

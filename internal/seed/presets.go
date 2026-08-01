@@ -68,7 +68,7 @@ func EnsureBuiltinPresets(st *store.Store) error {
 		input  store.PresetInput
 		legacy *store.PresetInput
 		force  bool
-	}{{input: codexBasic, legacy: &legacyCodex}, {input: claudeBasic, legacy: &legacyClaude}, {input: codexEnhancedPreset(), force: true}, {input: claudeEnhancedPreset(), force: true}}
+	}{{input: codexBasic, legacy: &legacyCodex, force: true}, {input: claudeBasic, legacy: &legacyClaude, force: true}, {input: codexEnhancedPreset(), force: true}, {input: claudeEnhancedPreset(), force: true}}
 	for _, item := range builtinPresets {
 		if err := ensureBuiltinPreset(st, item.input, item.legacy, item.force); err != nil {
 			return err
@@ -145,7 +145,7 @@ func ensureBuiltinPreset(st *store.Store, in store.PresetInput, legacy *store.Pr
 func basicPreset(name, description, version string, headers map[string]string) store.PresetInput {
 	doc := preset.Document{SchemaVersion: preset.SchemaVersion, Headers: map[string]preset.HeaderRule{}, RemoveHeaders: []string{}, Generators: map[string]preset.GeneratorRule{}}
 	for header, value := range headers {
-		doc.Headers[header] = preset.HeaderRule{Value: value, FillMissing: true}
+		doc.Headers[header] = preset.HeaderRule{Value: value, FillMissing: false}
 	}
 	raw, _ := json.Marshal(headers)
 	return store.PresetInput{Name: name, Description: description, VersionLabel: version, HeadersJSON: string(raw), RemoveHeaders: "[]", RuleJSON: preset.Marshal(doc), Builtin: true}
@@ -175,20 +175,20 @@ func builtinPresetMatches(current *store.ClientPreset, legacy store.PresetInput)
 }
 
 func codexEnhancedPreset() store.PresetInput {
-	fill := func(value any) preset.HeaderRule { return preset.HeaderRule{Value: value, FillMissing: true} }
+	force := func(value any) preset.HeaderRule { return preset.HeaderRule{Value: value, FillMissing: false} }
 	doc := preset.Document{
 		SchemaVersion: preset.SchemaVersion,
 		Headers: map[string]preset.HeaderRule{
-			"Accept":                fill("text/event-stream"),
-			"Content-Type":          fill("application/json"),
-			"Originator":            fill("codex_exec"),
-			"Session-Id":            fill("{{generator:session_id}}"),
-			"Thread-Id":             fill("{{generator:session_id}}"),
-			"User-Agent":            fill("codex_exec/{{version}} (Debian 12.0.0; x86_64) dumb (codex_exec; {{version}})"),
-			"X-Client-Request-Id":   fill("{{generator:session_id}}"),
-			"X-Codex-Beta-Features": fill("remote_compaction_v2"),
-			"X-Codex-Window-Id":     fill("{{generator:session_id}}:0"),
-			"X-Codex-Turn-Metadata": fill(map[string]any{
+			"Accept":                force("text/event-stream"),
+			"Content-Type":          force("application/json"),
+			"Originator":            force("codex_exec"),
+			"Session-Id":            force("{{generator:session_id}}"),
+			"Thread-Id":             force("{{generator:session_id}}"),
+			"User-Agent":            force("codex_exec/{{version}} (Debian 12.0.0; x86_64) dumb (codex_exec; {{version}})"),
+			"X-Client-Request-Id":   force("{{generator:session_id}}"),
+			"X-Codex-Beta-Features": force("remote_compaction_v2"),
+			"X-Codex-Window-Id":     force("{{generator:session_id}}:0"),
+			"X-Codex-Turn-Metadata": force(map[string]any{
 				"installation_id":         "{{generator:installation_id}}",
 				"session_id":              "{{generator:session_id}}",
 				"thread_id":               "{{generator:session_id}}",
@@ -209,32 +209,32 @@ func codexEnhancedPreset() store.PresetInput {
 		},
 	}
 	return store.PresetInput{
-		Name: "codex-enhanced", Description: "OpenAI Codex CLI enhanced fingerprint with missing-header completion",
+		Name: "codex-enhanced", Description: "OpenAI Codex CLI enhanced fingerprint with force-overridden headers",
 		VersionLabel: "0.145.0", HeadersJSON: "{}", RemoveHeaders: "[]", RuleJSON: preset.Marshal(doc), Builtin: true,
 	}
 }
 
 func claudeEnhancedPreset() store.PresetInput {
-	fill := func(value any) preset.HeaderRule { return preset.HeaderRule{Value: value, FillMissing: true} }
+	force := func(value any) preset.HeaderRule { return preset.HeaderRule{Value: value, FillMissing: false} }
 	doc := preset.Document{
 		SchemaVersion: preset.SchemaVersion,
 		Headers: map[string]preset.HeaderRule{
-			"Accept":         fill("application/json"),
-			"Anthropic-Beta": fill("claude-code-20250219,interleaved-thinking-2025-05-14,thinking-token-count-2026-05-13,context-management-2025-06-27,prompt-caching-scope-2026-01-05,mid-conversation-system-2026-04-07,effort-2025-11-24"),
-			"Anthropic-Dangerous-Direct-Browser-Access": fill("true"),
-			"Anthropic-Version":                         fill("2023-06-01"),
-			"Content-Type":                              fill("application/json"),
-			"User-Agent":                                fill("claude-cli/{{version}} (external, sdk-cli)"),
-			"X-App":                                     fill("cli"),
-			"X-Claude-Code-Session-Id":                  fill("{{generator:session_id}}"),
-			"X-Stainless-Arch":                          fill("x64"),
-			"X-Stainless-Lang":                          fill("js"),
-			"X-Stainless-Os":                            fill("Linux"),
-			"X-Stainless-Package-Version":               fill("0.94.0"),
-			"X-Stainless-Retry-Count":                   fill("0"),
-			"X-Stainless-Runtime":                       fill("node"),
-			"X-Stainless-Runtime-Version":               fill("v26.3.0"),
-			"X-Stainless-Timeout":                       fill("600"),
+			"Accept":         force("application/json"),
+			"Anthropic-Beta": force("claude-code-20250219,interleaved-thinking-2025-05-14,thinking-token-count-2026-05-13,context-management-2025-06-27,prompt-caching-scope-2026-01-05,mid-conversation-system-2026-04-07,effort-2025-11-24"),
+			"Anthropic-Dangerous-Direct-Browser-Access": force("true"),
+			"Anthropic-Version":                         force("2023-06-01"),
+			"Content-Type":                              force("application/json"),
+			"User-Agent":                                force("claude-cli/{{version}} (external, sdk-cli)"),
+			"X-App":                                     force("cli"),
+			"X-Claude-Code-Session-Id":                  force("{{generator:session_id}}"),
+			"X-Stainless-Arch":                          force("x64"),
+			"X-Stainless-Lang":                          force("js"),
+			"X-Stainless-Os":                            force("Linux"),
+			"X-Stainless-Package-Version":               force("0.94.0"),
+			"X-Stainless-Retry-Count":                   force("0"),
+			"X-Stainless-Runtime":                       force("node"),
+			"X-Stainless-Runtime-Version":               force("v26.3.0"),
+			"X-Stainless-Timeout":                       force("600"),
 		},
 		RemoveHeaders: []string{},
 		Generators: map[string]preset.GeneratorRule{
@@ -242,7 +242,7 @@ func claudeEnhancedPreset() store.PresetInput {
 		},
 	}
 	return store.PresetInput{
-		Name: "claude-enhanced", Description: "Anthropic Claude Code enhanced fingerprint with missing-header completion",
+		Name: "claude-enhanced", Description: "Anthropic Claude Code enhanced fingerprint with force-overridden headers",
 		VersionLabel: "2.1.220", HeadersJSON: "{}", RemoveHeaders: "[]", RuleJSON: preset.Marshal(doc), Builtin: true,
 	}
 }

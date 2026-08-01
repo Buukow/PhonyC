@@ -214,7 +214,7 @@ Built-in preset rows remain immutable as stored system definitions. Selecting `ç
 Captured request Headers convert into schema version 1 with:
 
 - One top-level rule per captured non-protected Header.
-- `fill_missing: false` by default, preserving the current force-override behavior.
+- `fill_missing: false` by default, representing force override.
 - No generators unless the user adds them later.
 - Empty `remove_headers`.
 

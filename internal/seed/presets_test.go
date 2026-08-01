@@ -36,7 +36,7 @@ func TestEnsureBuiltinPresetsCreatesFourVariants(t *testing.T) {
 	}
 }
 
-func TestEnsureBuiltinPresetsRefreshesEnhancedRulesOnly(t *testing.T) {
+func TestEnsureBuiltinPresetsRefreshesAllBuiltinRules(t *testing.T) {
 	st, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -58,15 +58,15 @@ func TestEnsureBuiltinPresetsRefreshesEnhancedRulesOnly(t *testing.T) {
 	}
 	base, _ = st.GetPresetByName("codex-tui")
 	enhanced, _ = st.GetPresetByName("codex-enhanced")
-	if base.RuleJSON != `{"legacy":"keep"}` {
-		t.Fatalf("base preset was unexpectedly refreshed: %s", base.RuleJSON)
+	if base.RuleJSON == `{"legacy":"keep"}` {
+		t.Fatalf("base preset was not refreshed: %s", base.RuleJSON)
 	}
 	if !strings.Contains(enhanced.RuleJSON, "time_number:unix_ms") {
 		t.Fatalf("enhanced preset was not refreshed: %s", enhanced.RuleJSON)
 	}
 }
 
-func TestBasicPresetsUseCapturedFingerprintsAndFillOnlyMissing(t *testing.T) {
+func TestBasicPresetsUseCapturedFingerprintsAndForceOverride(t *testing.T) {
 	st, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -107,8 +107,8 @@ func TestBasicPresetsUseCapturedFingerprintsAndFillOnlyMissing(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if resolved.Get("User-Agent") != "client-owned-agent" {
-			t.Fatalf("%s overwrote client user agent", tc.name)
+		if resolved.Get("User-Agent") != tc.userAgent {
+			t.Fatalf("%s did not force user agent: %q", tc.name, resolved.Get("User-Agent"))
 		}
 	}
 }
@@ -138,12 +138,12 @@ func TestLegacyBasicPresetsMigrateWithoutOverwritingUserEdits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if codexDoc.Headers["Originator"].Value != "codex_exec" || !codexDoc.Headers["Originator"].FillMissing {
+	if codexDoc.Headers["Originator"].Value != "codex_exec" || codexDoc.Headers["Originator"].FillMissing {
 		t.Fatalf("legacy codex was not migrated: %+v", codexDoc.Headers["Originator"])
 	}
 	claude, _ := st.GetPreset(custom.ID)
-	if claude.Description != "user edited" || !strings.Contains(claude.RuleJSON, "X-User") {
-		t.Fatalf("user-edited builtin was overwritten: %+v", claude)
+	if claude.Description == "user edited" || strings.Contains(claude.RuleJSON, "X-User") {
+		t.Fatalf("builtin preset was not refreshed: %+v", claude)
 	}
 }
 
@@ -165,15 +165,15 @@ func TestLegacyBasicPresetWithMetadataEditIsPreserved(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, _ := st.GetPreset(created.ID)
-	if got.Description != "user changed description" {
-		t.Fatalf("metadata edit was overwritten: %+v", got)
+	if got.Description == "user changed description" {
+		t.Fatalf("builtin metadata was not refreshed: %+v", got)
 	}
 	doc, err := preset.Parse(got.RuleJSON)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if doc.Headers["Originator"].Value != "codex-tui" {
-		t.Fatalf("rule was unexpectedly migrated: %+v", doc.Headers["Originator"])
+	if doc.Headers["Originator"].Value != "codex_exec" {
+		t.Fatalf("builtin rule was not refreshed: %+v", doc.Headers["Originator"])
 	}
 }
 
@@ -217,7 +217,7 @@ func TestCodexEnhancedPresetResolvesConsistentIdentity(t *testing.T) {
 	}
 }
 
-func TestEnhancedPresetsFillOnlyMissingHeaders(t *testing.T) {
+func TestEnhancedPresetsForceOverrideHeaders(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		input  store.PresetInput
@@ -236,8 +236,8 @@ func TestEnhancedPresetsFillOnlyMissingHeaders(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if resolved.Get(tc.header) != "client-owned-value" {
-				t.Fatalf("client header was overwritten: %q", resolved.Get(tc.header))
+			if resolved.Get(tc.header) == "client-owned-value" {
+				t.Fatalf("client header was not overwritten: %q", resolved.Get(tc.header))
 			}
 			if strings.TrimSpace(resolved.Get("User-Agent")) == "" {
 				t.Fatal("missing user agent completion")

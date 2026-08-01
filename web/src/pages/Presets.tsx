@@ -18,11 +18,11 @@ const builtinDisplay: Record<string, { name: string; description: string }> = {
   },
   'codex-enhanced': {
     name: 'Codex 增强',
-    description: '模拟 Codex 客户端的完整请求头与动态会话信息，可能会导致某些问题发生',
+    description: '模拟 Codex 客户端的完整请求头与动态会话信息，强制覆盖同名请求头',
   },
   'claude-enhanced': {
     name: 'Claude 增强',
-    description: '模拟 Claude Code 客户端的完整请求头与动态会话信息，可能会导致某些问题发生',
+    description: '模拟 Claude Code 客户端的完整请求头与动态会话信息，强制覆盖同名请求头',
   },
 }
 
@@ -46,9 +46,12 @@ function TreeNode({
   path,
   depth,
   fillMissing,
+  explicit,
+  parentFillMissing,
   fillMap,
   onValueChange,
   onFillChange,
+  onResetFill,
   onDelete,
 }: {
   keyName: string
@@ -56,15 +59,19 @@ function TreeNode({
   path: string
   depth: number
   fillMissing: boolean
+  explicit: boolean
+  parentFillMissing: boolean
   fillMap: Record<string, boolean>
   onValueChange: (path: string, value: any) => void
   onFillChange: (path: string, value: boolean) => void
+  onResetFill: (path: string) => void
   onDelete?: () => void
 }) {
   const isObject = value !== null && typeof value === 'object'
   const entries = isObject ? (Array.isArray(value) ? value.map((v, i) => [String(i), v] as const) : Object.entries(value)) : []
   const [open, setOpen] = useState(depth < 2)
   const summary = Array.isArray(value) ? `数组（${value.length}项）` : isObject ? '对象' : ''
+  const hasExplicitDescendant = Object.keys(fillMap).some((key) => path ? key.startsWith(`${path}.`) : true)
   return (
     <div className="space-y-1">
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(180px,1.5fr)_auto_auto] gap-2 items-center min-h-9" style={{ paddingLeft: `${depth * 24}px` }}>
@@ -77,14 +84,21 @@ function TreeNode({
         <div className="min-w-0">
           {isObject ? <span className="text-xs text-gray-400">{summary}</span> : <Input value={value == null ? '' : String(value)} onChange={(e) => onValueChange(path, e.target.value)} className="font-mono text-xs" />}
         </div>
-        <label className="flex items-center gap-1 text-[11px] text-gray-500 whitespace-nowrap">
-          <input type="checkbox" checked={fillMissing} onChange={(e) => onFillChange(path, e.target.checked)} />缺失补全
-        </label>
+        <div className="flex items-center gap-1 whitespace-nowrap">
+          <button type="button" role="switch" aria-checked={fillMissing} aria-label={`${keyName} ${fillMissing ? '缺失补全' : '强制覆盖'}`} className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors ${fillMissing ? 'bg-accent' : 'bg-primary'}`} onClick={() => onFillChange(path, !fillMissing)}>
+            <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${fillMissing ? 'translate-x-1' : 'translate-x-7'}`} />
+          </button>
+          <span className="text-[11px] text-gray-500">{explicit ? (fillMissing ? '缺失补全' : '强制覆盖') : `继承：${parentFillMissing ? '缺失补全' : '强制覆盖'}`}</span>
+          {hasExplicitDescendant && <span className="text-[11px] text-accent">含自定义子项</span>}
+          {explicit && path && <button type="button" className="text-[11px] text-primary hover:underline" onClick={() => onResetFill(path)}>恢复继承</button>}
+        </div>
         {onDelete ? <Button type="button" variant="danger" onClick={onDelete}>删除</Button> : <span />}
       </div>
       {open && entries.map(([childKey, childValue]) => {
         const childPath = path ? `${path}.${childKey}` : childKey
-        return <TreeNode key={childPath} keyName={childKey} value={childValue} path={childPath} depth={depth + 1} fillMissing={fillMap[childPath] ?? false} fillMap={fillMap} onValueChange={onValueChange} onFillChange={onFillChange} />
+        const childExplicit = Object.prototype.hasOwnProperty.call(fillMap, childPath)
+        const childFill = childExplicit ? !!fillMap[childPath] : fillMissing
+        return <TreeNode key={childPath} keyName={childKey} value={childValue} path={childPath} depth={depth + 1} fillMissing={childFill} explicit={childExplicit} parentFillMissing={fillMissing} fillMap={fillMap} onValueChange={onValueChange} onFillChange={onFillChange} onResetFill={onResetFill} />
       })}
     </div>
   )
@@ -129,13 +143,18 @@ function PresetEditor({ initial, onClose, onSaved }: { initial: any; onClose: ()
     const rule = doc.headers[header]
     if (!rule) return
     const parts = path ? path.split('.') : []
-    const valueAtPath = parts.reduce((current, part) => current?.[part], rule.value)
-    const descendants = collectPaths(valueAtPath, path)
     const childFill = { ...(rule.children_fill_missing || {}) }
-    if (path) childFill[path] = checked
-    descendants.forEach((childPath) => { childFill[childPath] = checked })
-    const nextRule = path ? { ...rule, children_fill_missing: childFill } : { ...rule, fill_missing: checked, children_fill_missing: childFill }
+    const nextRule = path ? { ...rule, children_fill_missing: { ...childFill, [path]: checked } } : { ...rule, fill_missing: checked, children_fill_missing: childFill }
     const next = { ...doc, headers: { ...doc.headers, [header]: nextRule } }
+    setDoc(next); setJsonText(JSON.stringify(next, null, 2))
+  }
+
+  function resetFillMissing(header: string, path: string) {
+    const rule = doc.headers[header]
+    if (!rule) return
+    const childFill = { ...(rule.children_fill_missing || {}) }
+    delete childFill[path]
+    const next = { ...doc, headers: { ...doc.headers, [header]: { ...rule, children_fill_missing: childFill } } }
     setDoc(next); setJsonText(JSON.stringify(next, null, 2))
   }
 
@@ -215,7 +234,7 @@ function PresetEditor({ initial, onClose, onSaved }: { initial: any; onClose: ()
                   <span className="font-mono text-xs font-semibold text-gray-700">headers</span>
                 </div>
                 <span className="text-xs text-gray-400">对象（{Object.keys(doc.headers).length}项）</span>
-                <span className="text-[11px] text-gray-400 whitespace-nowrap">缺失补全</span>
+                <span className="text-[11px] text-gray-400 whitespace-nowrap">默认模式</span>
                 <span className="w-14" />
               </div>
               {headersOpen && <div className="p-3 divide-y divide-gray-50">
@@ -227,9 +246,12 @@ function PresetEditor({ initial, onClose, onSaved }: { initial: any; onClose: ()
                     path=""
                     depth={1}
                     fillMissing={!!rule.fill_missing}
+                    explicit
+                    parentFillMissing={!!rule.fill_missing}
                     fillMap={rule.children_fill_missing || {}}
                     onValueChange={(path, value) => setHeaderValue(header, value, path)}
                     onFillChange={(path, checked) => setFillMissing(header, path, checked)}
+                    onResetFill={(path) => resetFillMissing(header, path)}
                     onDelete={() => { const headers = { ...doc.headers }; delete headers[header]; const next = { ...doc, headers }; setDoc(next); setJsonText(JSON.stringify(next, null, 2)) }}
                   />
                 ))}
