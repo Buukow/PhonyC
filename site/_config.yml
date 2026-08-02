@@ -3,7 +3,7 @@ description: PhonyG 轻量 AI API 中转网关的部署、配置与功能指南
 url: "https://buukow.github.io"
 baseurl: "/PhonyC"
 lang: zh-CN
-remote_theme: just-the-docs/just-the-docs@v0.10.1
+remote_theme: just-the-docs/just-the-docs@v0.10.2
 theme: just-the-docs
 
 plugins:

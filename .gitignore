@@ -17,6 +17,7 @@ ai测试专用渠道.txt
 /site/_site/
 /site/.jekyll-cache/
 /site/.sass-cache/
+/site/.bundle/
 /site/vendor/
 /test-results/
 /playwright-report/
