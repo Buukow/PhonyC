@@ -26,6 +26,7 @@ const requiredFiles = [
   'site/getting-started.md',
   'site/local-build.md',
   'site/docker.md',
+  'site/how-to-use.md',
   'site/features/dashboard.md',
   'site/features/channels.md',
   'site/features/keys.md',
@@ -48,14 +49,58 @@ requireText('site/_config.yml', [
   ['remote theme plugin', /jekyll-remote-theme/],
 ])
 
-const navigationFiles = ['site/index.md', 'site/getting-started.md', 'site/local-build.md', 'site/docker.md']
-const navigationOrders = navigationFiles.map((file) => {
-  const content = read(file)
-  const match = content.match(/^nav_order:\s*(\d+)/m)
-  return match ? Number(match[1]) : NaN
-})
-if (navigationOrders.some(Number.isNaN) || navigationOrders.join(',') !== '1,2,3,4') {
-  failures.push(`top navigation must be 首页(1) → 快速开始(2) → 本地构建(3) → Docker 部署(4); got ${navigationOrders.join(',')}`)
+requireText('site/index.md', [
+  ['home navigation order', /^nav_order:\s*1$/m],
+])
+
+requireText('site/getting-started.md', [
+  ['quick start navigation order', /^nav_order:\s*2$/m],
+  ['quick start child navigation', /^has_children:\s*true$/m],
+  ['local build entry', /\/local-build\//],
+  ['Docker entry', /\/docker\//],
+  ['how-to-use entry', /\/how-to-use\//],
+])
+
+const quickStartChildren = [
+  ['site/local-build.md', 1, '/local-build/'],
+  ['site/docker.md', 2, '/docker/'],
+  ['site/how-to-use.md', 3, '/how-to-use/'],
+]
+for (const [file, order, permalink] of quickStartChildren) {
+  requireText(file, [
+    ['quick start parent', /^parent:\s*快速开始$/m],
+    [`child navigation order ${order}`, new RegExp(`^nav_order:\\s*${order}$`, 'm')],
+    [`permalink ${permalink}`, new RegExp(`^permalink:\\s*${permalink.replaceAll('/', '\\/')}$`, 'm')],
+  ])
+}
+
+requireText('site/features/index.md', [
+  ['features top navigation order', /^nav_order:\s*3$/m],
+])
+
+requireText('site/reference/index.md', [
+  ['reference top navigation order', /^nav_order:\s*4$/m],
+])
+
+requireText('site/how-to-use.md', [
+  ['administrator initialization step', /^## 1\. 初始化管理员$/m],
+  ['channel creation step', /^## 2\. 创建上游渠道$/m],
+  ['user key creation step', /^## 3\. 创建用户 Key$/m],
+  ['first request step', /^## 4\. 发出请求$/m],
+  ['OpenAI Chat Completions example', /\/v1\/chat\/completions/],
+  ['OpenAI Responses example', /\/v1\/responses/],
+  ['Anthropic Messages example', /\/v1\/messages/],
+])
+
+requireText('site/docker.md', [
+  ['full Docker Compose', /^## Docker Compose$/m],
+  ['minimal Docker Compose', /^## 最简 Docker Compose$/m],
+])
+const dockerContent = read('site/docker.md')
+for (const removedSection of ['检查状态与日志', '升级', '备份与回滚']) {
+  if (new RegExp(`^## ${removedSection}$`, 'm').test(dockerContent)) {
+    failures.push(`site/docker.md: removed section still exists: ${removedSection}`)
+  }
 }
 
 const envPatterns = [
@@ -70,6 +115,7 @@ for (const file of ['site/docker.md', 'site/reference/environment.md']) {
 }
 
 requireText('site/features/presets.md', [
+  ['starred preset title', /^title:\s*客户端预设 ⭐$/m],
   ['force override', /强制覆盖/],
   ['fill missing', /缺失补全/],
   ['parent inheritance', /继承/],
@@ -78,6 +124,7 @@ requireText('site/features/presets.md', [
 ])
 
 requireText('site/features/healthcheck.md', [
+  ['starred healthcheck title', /^title:\s*自动测活与增强模式 ⭐$/m],
   ['enhanced healthcheck', /自动测活增强/],
   ['stream-first behavior', /stream-first/i],
   ['non-stream fallback', /fallback/i],
@@ -85,6 +132,7 @@ requireText('site/features/healthcheck.md', [
 ])
 
 requireText('site/features/capture.md', [
+  ['starred capture title', /^title:\s*请求捕获 ⭐$/m],
   ['capture only', /只捕获不转发|capture-only/],
   ['captured response', /captured/],
   ['re-arm', /重新布防/],

@@ -1,12 +1,12 @@
 ---
 layout: default
-title: 客户端预设
+title: 客户端预设 ⭐
 parent: 功能指南
 nav_order: 4
 permalink: /features/presets/
 ---
 
-# 客户端预设
+# 客户端预设 ⭐
 
 客户端预设把真实客户端的静态指纹、动态会话字段和 Header 合并行为组织成可复用规则，并绑定到用户 Key。
 

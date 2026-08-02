@@ -1,7 +1,8 @@
 ---
 layout: default
 title: 本地构建
-nav_order: 3
+parent: 快速开始
+nav_order: 1
 permalink: /local-build/
 ---
 

@@ -1,7 +1,7 @@
 ---
 layout: default
 title: 功能指南
-nav_order: 5
+nav_order: 3
 has_children: true
 permalink: /features/
 ---

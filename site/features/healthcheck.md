@@ -1,12 +1,12 @@
 ---
 layout: default
-title: 自动测活与增强模式
+title: 自动测活与增强模式 ⭐
 parent: 功能指南
 nav_order: 7
 permalink: /features/healthcheck/
 ---
 
-# 自动测活与增强模式
+# 自动测活与增强模式 ⭐
 
 自动测活定期调用每个渠道的第一个启用模型映射，根据最终状态临时禁用失败渠道，并在后续成功时恢复。
 

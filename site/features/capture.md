@@ -1,12 +1,12 @@
 ---
 layout: default
-title: 请求捕获
+title: 请求捕获 ⭐
 parent: 功能指南
 nav_order: 5
 permalink: /features/capture/
 ---
 
-# 请求捕获
+# 请求捕获 ⭐
 
 请求捕获用于记录 Codex、Claude Code 或其他客户端发给 PhonyG 的过滤后完整业务 Header，再一键保存为客户端预设。捕获 Key 的请求 **只捕获不转发**（capture-only），不会访问任何上游。
 

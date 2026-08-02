@@ -1,7 +1,8 @@
 ---
 layout: default
 title: Docker 部署
-nav_order: 4
+parent: 快速开始
+nav_order: 2
 permalink: /docker/
 ---
 
@@ -28,6 +29,8 @@ docker run -d \
 生产环境建议固定 `1.9` 或具体版本标签。`latest` 会跟随默认分支的新镜像，适合持续跟进项目但不利于精确回滚。
 
 ## Docker Compose
+
+下面的完整示例显式配置运行参数和健康检查：
 
 ```yaml
 services:
@@ -57,6 +60,30 @@ volumes:
 
 当前运行镜像基于 `debian:bookworm-slim`，只包含 CA 证书、时区数据和 PhonyG；若镜像中没有 `wget`，可从宿主机或反向代理执行健康检查，或者在自定义镜像中增加探针工具。
 
+## 最简 Docker Compose
+
+只保留启动服务所需的镜像、重启策略、端口和持久化数据卷：
+
+```yaml
+services:
+  phonyg:
+    image: ghcr.io/buukow/phonyg:1.9
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - phonyg-data:/data
+
+volumes:
+  phonyg-data:
+```
+
+保存为 `compose.yml` 后运行：
+
+```bash
+docker compose up -d
+```
+
 ## 环境变量
 
 | 变量 | 默认值 | Docker 推荐值 | 说明 |
@@ -80,50 +107,3 @@ docker run -d --name phonyg-local \
 ```
 
 Dockerfile 使用三阶段构建：Node.js 构建前端、Go 构建静态 `linux/amd64` 二进制、Debian slim 作为运行时。
-
-## 检查状态与日志
-
-{% raw %}
-```bash
-curl http://127.0.0.1:8080/api/health
-docker logs --tail 100 phonyg
-docker inspect phonyg --format '{{.State.Status}}'
-```
-{% endraw %}
-
-## 升级
-
-```bash
-docker pull ghcr.io/buukow/phonyg:1.9
-docker stop phonyg
-docker rename phonyg phonyg-backup
-
-docker run -d --name phonyg \
-  --restart unless-stopped \
-  -p 8080:8080 \
-  -v phonyg-data:/data \
-  ghcr.io/buukow/phonyg:1.9
-
-curl --fail http://127.0.0.1:8080/api/health
-```
-
-确认管理台和代理请求正常后再删除旧容器：
-
-```bash
-docker rm phonyg-backup
-```
-
-## 备份与回滚
-
-命名卷备份：
-
-```bash
-docker stop phonyg
-docker run --rm \
-  -v phonyg-data:/data:ro \
-  -v "$PWD":/backup \
-  alpine sh -c 'tar czf /backup/phonyg-data.tgz -C /data .'
-docker start phonyg
-```
-
-回滚时停止新容器，恢复数据卷备份，再使用旧版本镜像启动。详细步骤见 [升级、备份与回滚]({{ '/reference/operations/' | relative_url }})。

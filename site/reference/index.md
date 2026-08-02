@@ -1,7 +1,7 @@
 ---
 layout: default
 title: 配置参考
-nav_order: 6
+nav_order: 4
 has_children: true
 permalink: /reference/
 ---
