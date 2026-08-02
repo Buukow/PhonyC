@@ -109,7 +109,7 @@ PLATFORMS
 DEPENDENCIES
   jekyll (~> 4.4.1)
   jekyll-remote-theme (~> 0.4.3)
-  just-the-docs (~> 0.10.1)
+  just-the-docs (= 0.10.2)
   webrick (~> 1.9)
 
 BUNDLED WITH
