@@ -22,6 +22,9 @@ function requireText(relativePath, patterns) {
 
 const requiredFiles = [
   'site/_config.yml',
+  'site/_includes/head_custom.html',
+  'site/assets/js/navigation-state.js',
+  'site/_sass/custom/custom.scss',
   'site/index.md',
   'site/getting-started.md',
   'site/local-build.md',
@@ -47,6 +50,21 @@ requireText('site/_config.yml', [
   ['project baseurl', /^baseurl:\s*["']?\/PhonyC/m],
   ['Just the Docs theme', /just-the-docs/],
   ['remote theme plugin', /jekyll-remote-theme/],
+])
+
+requireText('site/_includes/head_custom.html', [
+  ['navigation state script include', /navigation-state\.js/],
+])
+
+requireText('site/assets/js/navigation-state.js', [
+  ['navigation storage key', /phonyg-docs:expanded-navigation/],
+  ['delayed state persistence', /setTimeout\(writeState, 0\)/],
+  ['ARIA state restoration', /aria-expanded/],
+])
+
+requireText('site/_sass/custom/custom.scss', [
+  ['emoji font fallback', /Noto Color Emoji/],
+  ['emoji presentation', /font-variant-emoji:\s*emoji/],
 ])
 
 requireText('site/index.md', [
