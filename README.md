@@ -2,6 +2,8 @@
 
 轻量 AI API 中转网关（Go + React 管理台）。
 
+📖 **完整文档：<https://buukow.github.io/PhonyC/>**
+
 ## 特性
 
 - Header 重组 + Body 玻璃穿透
@@ -27,6 +29,7 @@ PHONYG_ADDR=:8080 PHONYG_DATA_DIR=./data ./bin/phonyg
 | `PHONYG_DATA_DIR` | `./data` | 数据目录 |
 | `PHONYG_JWT_SECRET` | 自动生成 | JWT 密钥 |
 | `PHONYG_MAX_BODY_BYTES` | 64MB | 请求体上限 |
+| `PHONYG_JWT_TTL_HOURS` | `24` | 管理员 JWT 有效小时数 |
 
 ### 开发
 
@@ -73,7 +76,7 @@ cd web && npm run dev
 
 渠道 `priority`：**0 为默认最低**，数字越大越优先；同优先级随机；禁止负数。
 
-## Deploy (port 23342)
+## 本地构建与部署
 
 ```bash
 ./scripts/deploy.sh
@@ -93,11 +96,23 @@ Service is managed by systemd unit `phonyg.service` with `Restart=always`.
 ## Docker
 
 ```bash
-docker pull ghcr.io/buukow/phonyg:1.2
+docker pull ghcr.io/buukow/phonyg:1.9
 docker run -d --name phonyg \
   -p 8080:8080 \
   -v phonyg-data:/data \
-  ghcr.io/buukow/phonyg:1.2
+  ghcr.io/buukow/phonyg:1.9
 ```
 
-镜像由 GitHub Actions 构建（`linux/amd64`），版本标签：`1.2`。
+镜像由 GitHub Actions 构建（`linux/amd64`），当前固定版本标签：`1.9`。
+
+## 文档本地预览
+
+```bash
+cd site
+bundle install
+bundle exec jekyll serve --host 0.0.0.0 --port 23342 --baseurl /PhonyC
+```
+
+打开 `http://127.0.0.1:23342/PhonyC/`。文档截图由根目录
+`npm run docs:screenshots` 使用无头 Chromium 生成，结构校验使用
+`npm run docs:check`。

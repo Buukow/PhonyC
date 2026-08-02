@@ -1,0 +1,54 @@
+title: PhonyG 文档
+description: PhonyG 轻量 AI API 中转网关的部署、配置与功能指南
+url: "https://buukow.github.io"
+baseurl: "/PhonyC"
+lang: zh-CN
+remote_theme: just-the-docs/just-the-docs@v0.10.1
+theme: just-the-docs
+
+plugins:
+  - jekyll-remote-theme
+
+search_enabled: true
+search:
+  heading_level: 3
+  previews: 3
+  preview_words_before: 5
+  preview_words_after: 10
+  tokenizer_separator: /[\s/]+/
+  rel_url: true
+
+heading_anchors: true
+nav_sort: case_sensitive
+color_scheme: phonyg
+enable_copy_code_button: true
+back_to_top: true
+back_to_top_text: 返回顶部
+last_edit_timestamp: false
+
+aux_links:
+  "PhonyG on GitHub":
+    - "https://github.com/Buukow/PhonyC"
+aux_links_new_tab: true
+
+callouts_level: quiet
+callouts:
+  note:
+    title: 说明
+    color: blue
+  warning:
+    title: 注意
+    color: yellow
+  important:
+    title: 重要
+    color: red
+  tip:
+    title: 建议
+    color: green
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+  - .jekyll-cache
+  - README.md

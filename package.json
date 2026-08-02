@@ -1,0 +1,13 @@
+{
+  "name": "phonyg-docs-automation",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Documentation validation and screenshot automation for PhonyG",
+  "scripts": {
+    "docs:check": "node scripts/check-docs.mjs",
+    "docs:screenshots": "node scripts/capture-doc-screenshots.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.54.1"
+  }
+}

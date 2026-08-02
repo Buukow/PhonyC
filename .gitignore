@@ -10,5 +10,13 @@ node_modules/
 /bin/
 *.exe
 *.test
+*.tsbuildinfo
 .DS_Store
 ai测试专用渠道.txt
+.superpowers/
+/site/_site/
+/site/.jekyll-cache/
+/site/.sass-cache/
+/site/vendor/
+/test-results/
+/playwright-report/
