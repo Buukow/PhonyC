@@ -13,8 +13,8 @@ permalink: /features/capture/
 ## 四步完成捕获
 
 <ol class="step-list">
-  <li><strong>开启捕获。</strong>进入侧栏“请求捕获”，点击开启。系统生成或复用固定捕获 API Key，并进入“等待首次请求”布防状态。</li>
-  <li><strong>让 AI 客户端调用 PhonyG。</strong>把客户端 Base URL 指向 PhonyG，Authorization 或 API Key 改为页面显示的固定捕获 Key，然后发起一次对话。</li>
+  <li><strong>开启捕获。</strong>进入侧栏“请求捕获”，点击开启。系统生成新的捕获 API Key，并进入“等待首次请求”布防状态。</li>
+  <li><strong>让 AI 客户端调用 PhonyG。</strong>把客户端 Base URL 指向 PhonyG，Authorization 或 API Key 改为页面当前显示的捕获 Key，然后发起一次对话。</li>
   <li><strong>确认客户端返回。</strong>PhonyG 按 OpenAI/Anthropic 路径返回协议适配后的成功内容，客户端应显示 <code>captured</code>。</li>
   <li><strong>查看并保存。</strong>管理台显示捕获到的业务 Header；填写预设名后一键保存。同名自定义预设可覆盖，内置预设不会被覆盖。</li>
 </ol>
@@ -66,10 +66,10 @@ AI 客户端
 
 ## 布防与 403
 
-- 开启捕获会立即布防并清除旧捕获；
+- 开启捕获会生成新的捕获 Key，立即布防并清除旧捕获；
 - 布防状态只记录下一次使用固定 Key 的请求；
 - 捕获完成后自动取消布防；
-- 要捕获下一次请求，点击“重新布防”；
+- 要捕获下一次请求，点击“重新布防”；每次重新布防都会生成新的捕获 Key，页面会立即刷新显示，旧 Key 随即失效；
 - 捕获关闭或未布防时继续使用该固定 Key，会返回 **403**；
 - 普通用户 Key 不受捕获页面布防状态影响。
 

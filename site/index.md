@@ -17,7 +17,7 @@ permalink: /
 PhonyG 以 Go 提供单进程网关，React 管理台嵌入二进制，SQLite 保存配置和请求元数据。它适合需要统一接入多个 OpenAI/Anthropic 兼容上游，并希望模拟 Codex、Claude Code 等真实客户端请求特征的单机部署。
 
 <div class="feature-grid">
-  <a class="feature-card" href="{{ '/features/channels/' | relative_url }}"><strong>协议与渠道路由</strong><span>OpenAI / Anthropic 路径、优先级、模型映射和临时禁用。</span></a>
+  <a class="feature-card" href="{{ '/features/channels/' | relative_url }}"><strong>协议与渠道路由</strong><span>OpenAI Chat / Responses、Anthropic 路径、优先级、模型映射和临时禁用。</span></a>
   <a class="feature-card" href="{{ '/features/presets/' | relative_url }}"><strong>客户端指纹预设</strong><span>结构化 Header、动态会话生成器、强制覆盖与缺失补全。</span></a>
   <a class="feature-card" href="{{ '/features/healthcheck/' | relative_url }}"><strong>自动测活增强</strong><span>随机提示词、stream-first、非流式回退与自动恢复。</span></a>
   <a class="feature-card" href="{{ '/features/capture/' | relative_url }}"><strong>请求捕获</strong><span>捕获真实客户端业务 Header，一键转换为可复用预设。</span></a>
@@ -26,7 +26,7 @@ PhonyG 以 Go 提供单进程网关，React 管理台嵌入二进制，SQLite �
 ## 核心能力
 
 - **Header 重组 + Body 玻璃穿透**：只在需要时对顶层 `model` 做字节级改写，其余请求体保持原样。
-- **两类上游协议**：OpenAI 路径和 Anthropic `/v1/messages` 分别使用对应鉴权方式。
+- **两类上游协议**：OpenAI Chat / Responses 路径和 Anthropic `/v1/messages` 分别使用对应鉴权方式。
 - **三种 Key 伪装模式**：透传、预设、自定义。
 - **运行观测**：概览、模型热度、状态码、延迟、输入/输出/总 Token、错误摘要和筛选日志。
 - **单机友好**：默认 SQLite，无外部数据库依赖；管理台由 JWT 保护。

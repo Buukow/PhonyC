@@ -137,8 +137,8 @@ requireText('site/features/presets.md', [
   ['force override', /强制覆盖/],
   ['fill missing', /缺失补全/],
   ['parent inheritance', /继承/],
-  ['built-in Codex preset', /codex-(?:tui|enhanced)/i],
-  ['built-in Claude preset', /claude-(?:cli|enhanced)/i],
+  ['built-in Codex preset', /Codex 基础|Codex 增强/],
+  ['built-in Claude preset', /Claude 基础|Claude 增强/],
 ])
 
 requireText('site/features/healthcheck.md', [

@@ -27,6 +27,7 @@ permalink: /how-to-use/
 - 选择 `openai` 或 `anthropic` 协议；
 - 填写上游 Base URL 和 API Key；
 - 设置优先级和超时；
+- 按需选择“测活所用预设”；默认“无（正常请求）”，只影响测活请求使用的 Header；
 - 从上游 `/v1/models` 拉取模型，或手动添加客户端模型与上游模型映射；
 - 保存后按需手动测活。
 
@@ -43,7 +44,7 @@ permalink: /how-to-use/
 
 ## 4. 发出请求
 
-OpenAI Chat Completions：
+OpenAI Chat Completions（`/v1/chat/completions`）：
 
 ```bash
 curl http://127.0.0.1:8080/v1/chat/completions \
@@ -56,7 +57,7 @@ curl http://127.0.0.1:8080/v1/chat/completions \
   }'
 ```
 
-OpenAI Responses：
+OpenAI Responses（`/v1/responses`）：
 
 ```bash
 curl http://127.0.0.1:8080/v1/responses \
