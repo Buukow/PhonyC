@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { LoaderCircle, Plus } from 'lucide-react'
 import { api } from '@/lib/api'
 import { channelPresentation } from '@/lib/channelState'
 import ChannelModelEditor, { createModelDraft, type ModelDraft } from '@/components/ChannelModelEditor'
@@ -17,6 +17,7 @@ type Channel = {
   priority: number
   timeout_ms: number
   extra_headers_json?: string
+  healthcheck_preset_id?: number | null
   last_test_status?: number
   last_test_ms?: number
   last_test_error?: string
@@ -30,7 +31,10 @@ type ChannelForm = {
   priority: number
   timeout_ms: number
   extra_headers_json: string
+  healthcheck_preset_id: string
 }
+
+type PresetOption = { id: number; name: string }
 
 const emptyForm = (): ChannelForm => ({
   name: '',
@@ -40,6 +44,7 @@ const emptyForm = (): ChannelForm => ({
   priority: 10,
   timeout_ms: 600000,
   extra_headers_json: '{}',
+  healthcheck_preset_id: '',
 })
 
 export default function Channels() {
@@ -48,11 +53,17 @@ export default function Channels() {
   const [editing, setEditing] = useState<Channel | null>(null)
   const [form, setForm] = useState<ChannelForm>(emptyForm())
   const [models, setModels] = useState<ModelDraft[]>([])
+  const [presets, setPresets] = useState<PresetOption[]>([])
+  const [testingChannelIDs, setTestingChannelIDs] = useState<Set<number>>(() => new Set())
   const [err, setErr] = useState('')
 
   async function load() {
-    const res = await api<{ items: Channel[] }>('/api/channels')
-    setItems(res.items || [])
+    const [channelsRes, presetsRes] = await Promise.all([
+      api<{ items: Channel[] }>('/api/channels'),
+      api<{ items: PresetOption[] }>('/api/presets'),
+    ])
+    setItems(channelsRes.items || [])
+    setPresets(presetsRes.items || [])
   }
   useEffect(() => { load().catch(console.error) }, [])
 
@@ -75,6 +86,7 @@ export default function Channels() {
       priority: ch.priority,
       timeout_ms: ch.timeout_ms,
       extra_headers_json: ch.extra_headers_json || '{}',
+      healthcheck_preset_id: ch.healthcheck_preset_id ? String(ch.healthcheck_preset_id) : '',
     })
     setErr('')
     try {
@@ -109,6 +121,11 @@ export default function Channels() {
       priority: Number(form.priority),
       timeout_ms: Number(form.timeout_ms),
       extra_headers_json: form.extra_headers_json || '{}',
+    }
+    if (form.healthcheck_preset_id) {
+      payload.healthcheck_preset_id = Number(form.healthcheck_preset_id)
+    } else if (editing) {
+      payload.clear_healthcheck_preset = true
     }
     if (form.api_key.trim()) payload.api_key = form.api_key
     const modelPayload = models
@@ -155,6 +172,23 @@ export default function Channels() {
     await load()
   }
 
+  async function testChannel(id: number) {
+    setTestingChannelIDs((current) => new Set(current).add(id))
+    setErr('')
+    try {
+      await api(`/api/channels/${id}/test`, { method: 'POST', body: '{}' })
+    } catch (ex: any) {
+      setErr(ex.message || '测活失败')
+    } finally {
+      await load().catch(() => {})
+      setTestingChannelIDs((current) => {
+        const next = new Set(current)
+        next.delete(id)
+        return next
+      })
+    }
+  }
+
   const formOpen = creating || !!editing
 
   return (
@@ -191,6 +225,13 @@ export default function Channels() {
               <Input type="number" min={0} value={form.priority} onChange={(e) => setForm({ ...form, priority: Math.max(0, Number(e.target.value)) })} />
             </div>
             <div><Label>超时 (ms)</Label><Input type="number" value={form.timeout_ms} onChange={(e) => setForm({ ...form, timeout_ms: Number(e.target.value) })} /></div>
+            <div className="md:col-span-2">
+              <Label>测活所用预设</Label>
+              <Select value={form.healthcheck_preset_id} onChange={(e) => setForm({ ...form, healthcheck_preset_id: e.target.value })}>
+                <option value="">无（正常请求）</option>
+                {presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
+              </Select>
+            </div>
             <div className="md:col-span-2"><Label>额外 Header JSON</Label><Textarea value={form.extra_headers_json} onChange={(e) => setForm({ ...form, extra_headers_json: e.target.value })} /></div>
 
             <ChannelModelEditor
@@ -216,6 +257,7 @@ export default function Channels() {
         <Table headers={['名称', '协议', '优先级', '状态', '最近测活', 'Base URL', '操作']}>
           {items.map((ch) => {
             const state = channelPresentation(ch)
+            const testing = testingChannelIDs.has(ch.id)
             return <tr key={ch.id} className="border-b border-gray-50 hover:bg-canvas">
               <td className="px-4 py-3"><Link className="text-primary hover:underline font-medium" to={`/channels/${ch.id}`}>{ch.name}</Link></td>
               <td className="px-4 py-3"><Badge tone="muted">{ch.protocol}</Badge></td>
@@ -230,7 +272,9 @@ export default function Channels() {
               <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{ch.base_url}</td>
               <td className="px-4 py-3 space-x-2 whitespace-nowrap">
                 <Button variant="ghost" onClick={() => startEdit(ch)}>编辑</Button>
-                <Button variant="ghost" onClick={async () => { await api(`/api/channels/${ch.id}/test`, { method: 'POST', body: '{}' }); await load() }}>测活</Button>
+                <Button className="min-w-[88px]" variant="ghost" disabled={testing} onClick={() => testChannel(ch.id)}>
+                  {testing ? <><LoaderCircle className="w-4 h-4 animate-spin" />测活中</> : '测活'}
+                </Button>
                 <Button variant="ghost" onClick={() => toggle(ch)}>{state.actionLabel}</Button>
                 <Button variant="danger" onClick={() => remove(ch.id)}>删除</Button>
               </td>

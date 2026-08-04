@@ -230,6 +230,12 @@ func (a *API) createChannel(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "priority must be >= 0 (0 is lowest, higher is preferred)"})
 		return
 	}
+	if in.HealthcheckPresetID != nil {
+		if _, err := a.Store.GetPreset(*in.HealthcheckPresetID); err != nil {
+			c.JSON(400, gin.H{"error": "healthcheck preset not found"})
+			return
+		}
+	}
 	ch, err := a.Store.CreateChannel(in)
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -268,6 +274,12 @@ func (a *API) updateChannel(c *gin.Context) {
 	if in.Priority != nil && *in.Priority < 0 {
 		c.JSON(400, gin.H{"error": "priority must be >= 0 (0 is lowest, higher is preferred)"})
 		return
+	}
+	if in.HealthcheckPresetID != nil {
+		if _, err := a.Store.GetPreset(*in.HealthcheckPresetID); err != nil {
+			c.JSON(400, gin.H{"error": "healthcheck preset not found"})
+			return
+		}
 	}
 	ch, err := a.Store.UpdateChannel(id, in)
 	if err != nil {
@@ -451,7 +463,7 @@ func (a *API) createKey(c *gin.Context) {
 		in.Key = RandomAPIKey()
 	}
 	if in.ImpersonationMode == "" {
-		in.ImpersonationMode = "passthrough"
+		in.ImpersonationMode = store.ImpersonationModePassthrough
 	}
 	k, err := a.Store.CreateUserKey(in)
 	if err != nil {
@@ -829,7 +841,7 @@ func (a *API) healthcheckStatus(c *gin.Context) {
 		"enabled":               a.Store.GetSettingBool(store.SettingAutoTestEnabled, false),
 		"interval_minutes":      a.Store.GetSettingInt(store.SettingAutoTestIntervalMin, 10),
 		"random_offset_minutes": a.Store.GetSettingInt(store.SettingAutoTestRandomOffset, 0),
-		"prompt":                a.Store.GetSettingOr(store.SettingAutoTestPrompt, "hi"),
+		"prompt":                a.Store.GetSettingOr(store.SettingAutoTestPrompt, "什么是codex？"),
 		"model":                 a.Store.GetSettingOr(store.SettingAutoTestModel, ""),
 		"disable_status_codes":  a.Store.GetSettingOr(store.SettingAutoTestDisableCodes, "401,403,404,503"),
 		"enhanced_enabled":      a.Store.GetSettingBool(store.SettingAutoTestEnhanced, false),
@@ -891,7 +903,7 @@ func (a *API) armCapture(c *gin.Context) {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{"ok": true, "armed": true})
+	c.JSON(200, gin.H{"ok": true, "armed": true, "key": a.Capture.Key()})
 }
 
 func (a *API) clearCapture(c *gin.Context) {

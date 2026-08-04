@@ -41,7 +41,7 @@ func setupTest(t *testing.T) (*Handler, *store.Store, *snapshot.Manager, string)
 	if err != nil {
 		t.Fatal(err)
 	}
-	k, err := st.CreateUserKey(store.UserKeyInput{Name: "k1", Key: "sk-test-1", Enabled: &en, ImpersonationMode: "passthrough"})
+	k, err := st.CreateUserKey(store.UserKeyInput{Name: "k1", Key: "sk-test-1", Enabled: &en, ImpersonationMode: store.ImpersonationModePassthrough})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +124,7 @@ func TestProxyRewriteAndHeaders(t *testing.T) {
 	ch, _ := st.CreateChannel(store.ChannelInput{Name: "u", Enabled: &en, Protocol: "openai", BaseURL: up.URL, APIKey: "UPSTREAMKEY", Priority: &pri})
 	rw := true
 	_, _ = st.CreateChannelModel(ch.ID, store.ChannelModelInput{ClientModel: "client-m", UpstreamModel: "upstream-m", RewriteModel: &rw, Enabled: &en})
-	_, _ = st.CreateUserKey(store.UserKeyInput{Name: "k", Key: "sk-abc", Enabled: &en, ImpersonationMode: "passthrough"})
+	_, _ = st.CreateUserKey(store.UserKeyInput{Name: "k", Key: "sk-abc", Enabled: &en, ImpersonationMode: store.ImpersonationModePassthrough})
 	snap := snapshot.NewManager(st)
 	_ = snap.Reload()
 	h := NewHandler(snap, st, nil, 1<<20)
@@ -239,7 +239,7 @@ func TestCaptureAnyModelSuccessShape(t *testing.T) {
 	if meta.StatusCode != 200 || meta.ErrorSummary != "" ||
 		meta.ClientModel != "totally-unknown-model-xyz" || meta.UpstreamModel != "" ||
 		meta.ChannelID != nil || meta.UserKeyID != nil || meta.Method != "POST" ||
-		meta.ImpersonationMode != "passthrough" {
+		meta.ImpersonationMode != store.ImpersonationModePassthrough {
 		t.Fatalf("unexpected capture metadata: %+v", meta)
 	}
 }
@@ -274,7 +274,7 @@ func TestAutoRetryAndLiveTempDisable(t *testing.T) {
 	rw := false
 	_, _ = st.CreateChannelModel(ch1.ID, store.ChannelModelInput{ClientModel: "m1", UpstreamModel: "m1", RewriteModel: &rw, Enabled: &en})
 	_, _ = st.CreateChannelModel(ch2.ID, store.ChannelModelInput{ClientModel: "m1", UpstreamModel: "m1", RewriteModel: &rw, Enabled: &en})
-	_, _ = st.CreateUserKey(store.UserKeyInput{Name: "k", Key: "sk-retry", Enabled: &en, ImpersonationMode: "passthrough"})
+	_, _ = st.CreateUserKey(store.UserKeyInput{Name: "k", Key: "sk-retry", Enabled: &en, ImpersonationMode: store.ImpersonationModePassthrough})
 	_ = st.SetSetting(store.SettingAutoRetryEnabled, "true")
 	_ = st.SetSetting(store.SettingAutoRetryMax, "2")
 	_ = st.SetSetting(store.SettingAutoRetryStatusCodes, "503")

@@ -27,7 +27,7 @@ PhonyG 以 Go 提供单进程网关，React 管理台嵌入二进制，SQLite �
 
 - **Header 重组 + Body 玻璃穿透**：只在需要时对顶层 `model` 做字节级改写，其余请求体保持原样。
 - **两类上游协议**：OpenAI 路径和 Anthropic `/v1/messages` 分别使用对应鉴权方式。
-- **三种 Key 伪装模式**：`passthrough`、`preset`、`custom`。
+- **三种 Key 伪装模式**：透传、预设、自定义。
 - **运行观测**：概览、模型热度、状态码、延迟、输入/输出/总 Token、错误摘要和筛选日志。
 - **单机友好**：默认 SQLite，无外部数据库依赖；管理台由 JWT 保护。
 

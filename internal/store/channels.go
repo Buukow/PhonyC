@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const channelSelectCols = `id, name, enabled, temp_disabled, protocol, base_url, api_key, priority, extra_headers_json, timeout_ms, test_model, last_test_at, last_test_status, last_test_ms, last_test_error, created_at, updated_at`
+const channelSelectCols = `id, name, enabled, temp_disabled, protocol, base_url, api_key, priority, extra_headers_json, timeout_ms, test_model, healthcheck_preset_id, last_test_at, last_test_status, last_test_ms, last_test_error, created_at, updated_at`
 
 func (s *Store) ListChannels() ([]Channel, error) {
 	rows, err := s.db.Query(`SELECT ` + channelSelectCols + ` FROM channels ORDER BY priority DESC, id ASC`)
@@ -35,7 +35,7 @@ func scanChannel(row *sql.Row) (*Channel, error) {
 	var c Channel
 	var en, td int
 	var lastAt, cAt, uAt string
-	if err := row.Scan(&c.ID, &c.Name, &en, &td, &c.Protocol, &c.BaseURL, &c.APIKey, &c.Priority, &c.ExtraHeadersJSON, &c.TimeoutMS, &c.TestModel, &lastAt, &c.LastTestStatus, &c.LastTestMs, &c.LastTestError, &cAt, &uAt); err != nil {
+	if err := row.Scan(&c.ID, &c.Name, &en, &td, &c.Protocol, &c.BaseURL, &c.APIKey, &c.Priority, &c.ExtraHeadersJSON, &c.TimeoutMS, &c.TestModel, &c.HealthcheckPresetID, &lastAt, &c.LastTestStatus, &c.LastTestMs, &c.LastTestError, &cAt, &uAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
@@ -56,7 +56,7 @@ func scanChannelRows(rows *sql.Rows) (*Channel, error) {
 	var c Channel
 	var en, td int
 	var lastAt, cAt, uAt string
-	if err := rows.Scan(&c.ID, &c.Name, &en, &td, &c.Protocol, &c.BaseURL, &c.APIKey, &c.Priority, &c.ExtraHeadersJSON, &c.TimeoutMS, &c.TestModel, &lastAt, &c.LastTestStatus, &c.LastTestMs, &c.LastTestError, &cAt, &uAt); err != nil {
+	if err := rows.Scan(&c.ID, &c.Name, &en, &td, &c.Protocol, &c.BaseURL, &c.APIKey, &c.Priority, &c.ExtraHeadersJSON, &c.TimeoutMS, &c.TestModel, &c.HealthcheckPresetID, &lastAt, &c.LastTestStatus, &c.LastTestMs, &c.LastTestError, &cAt, &uAt); err != nil {
 		return nil, err
 	}
 	c.Enabled = intToBool(en)
@@ -71,16 +71,18 @@ func scanChannelRows(rows *sql.Rows) (*Channel, error) {
 }
 
 type ChannelInput struct {
-	Name             string  `json:"name"`
-	Enabled          *bool   `json:"enabled"`
-	TempDisabled     *bool   `json:"temp_disabled"`
-	Protocol         string  `json:"protocol"`
-	BaseURL          string  `json:"base_url"`
-	APIKey           string  `json:"api_key"`
-	Priority         *int    `json:"priority"`
-	ExtraHeadersJSON string  `json:"extra_headers_json"`
-	TimeoutMS        *int    `json:"timeout_ms"`
-	TestModel        *string `json:"test_model"`
+	Name                   string  `json:"name"`
+	Enabled                *bool   `json:"enabled"`
+	TempDisabled           *bool   `json:"temp_disabled"`
+	Protocol               string  `json:"protocol"`
+	BaseURL                string  `json:"base_url"`
+	APIKey                 string  `json:"api_key"`
+	Priority               *int    `json:"priority"`
+	ExtraHeadersJSON       string  `json:"extra_headers_json"`
+	TimeoutMS              *int    `json:"timeout_ms"`
+	TestModel              *string `json:"test_model"`
+	HealthcheckPresetID    *int64  `json:"healthcheck_preset_id"`
+	ClearHealthcheckPreset bool    `json:"clear_healthcheck_preset"`
 }
 
 func (s *Store) CreateChannel(in ChannelInput) (*Channel, error) {
@@ -105,8 +107,8 @@ func (s *Store) CreateChannel(in ChannelInput) (*Channel, error) {
 	if in.TestModel != nil {
 		testModel = *in.TestModel
 	}
-	res, err := s.db.Exec(`INSERT INTO channels(name, enabled, temp_disabled, protocol, base_url, api_key, priority, extra_headers_json, timeout_ms, test_model, last_test_at, last_test_status, last_test_ms, last_test_error, created_at, updated_at)
-VALUES(?,?,0,?,?,?,?,?,?,?,'',0,0,'',?,?)`, in.Name, en, in.Protocol, strings.TrimRight(in.BaseURL, "/"), in.APIKey, pri, extra, to, testModel, now, now)
+	res, err := s.db.Exec(`INSERT INTO channels(name, enabled, temp_disabled, protocol, base_url, api_key, priority, extra_headers_json, timeout_ms, test_model, healthcheck_preset_id, last_test_at, last_test_status, last_test_ms, last_test_error, created_at, updated_at)
+	VALUES(?,?,0,?,?,?,?,?,?,?,?, '',0,0,'',?,?)`, in.Name, en, in.Protocol, strings.TrimRight(in.BaseURL, "/"), in.APIKey, pri, extra, to, testModel, in.HealthcheckPresetID, now, now)
 	if err != nil {
 		return nil, err
 	}
@@ -152,9 +154,14 @@ func (s *Store) UpdateChannel(id int64, in ChannelInput) (*Channel, error) {
 	if in.TestModel != nil {
 		cur.TestModel = *in.TestModel
 	}
+	if in.ClearHealthcheckPreset {
+		cur.HealthcheckPresetID = nil
+	} else if in.HealthcheckPresetID != nil {
+		cur.HealthcheckPresetID = in.HealthcheckPresetID
+	}
 	now := formatTime(nowUTC())
-	_, err = s.db.Exec(`UPDATE channels SET name=?, enabled=?, temp_disabled=?, protocol=?, base_url=?, api_key=?, priority=?, extra_headers_json=?, timeout_ms=?, test_model=?, updated_at=? WHERE id=?`,
-		cur.Name, boolToInt(cur.Enabled), boolToInt(cur.TempDisabled), cur.Protocol, cur.BaseURL, cur.APIKey, cur.Priority, cur.ExtraHeadersJSON, cur.TimeoutMS, cur.TestModel, now, id)
+	_, err = s.db.Exec(`UPDATE channels SET name=?, enabled=?, temp_disabled=?, protocol=?, base_url=?, api_key=?, priority=?, extra_headers_json=?, timeout_ms=?, test_model=?, healthcheck_preset_id=?, updated_at=? WHERE id=?`,
+		cur.Name, boolToInt(cur.Enabled), boolToInt(cur.TempDisabled), cur.Protocol, cur.BaseURL, cur.APIKey, cur.Priority, cur.ExtraHeadersJSON, cur.TimeoutMS, cur.TestModel, cur.HealthcheckPresetID, now, id)
 	if err != nil {
 		return nil, err
 	}

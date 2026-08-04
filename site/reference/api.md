@@ -37,9 +37,9 @@ permalink: /reference/api/
 
 ## Header 处理
 
-- `passthrough` 保留非鉴权、非 hop、非传输业务 Header；
+- `透传` 保留非鉴权、非 hop、非传输业务 Header；
 - 渠道额外 Header 随后应用；
-- `preset` / `custom` 按规则移除和覆盖业务 Header；
+- `预设` / `自定义` 按规则移除和覆盖业务 Header；
 - 上游鉴权、Host、Content-Length、Accept-Encoding 和 hop-by-hop Header 由网关控制。
 
 ## 错误结构

@@ -90,6 +90,63 @@ func TestEnhancedHealthcheckStreamFallbackKeepsPayload(t *testing.T) {
 	}
 }
 
+func TestHealthcheckAppliesSelectedPresetHeadersWithoutChangingPath(t *testing.T) {
+	var gotPath string
+	var gotHeaders http.Header
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotHeaders = r.Header.Clone()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer up.Close()
+
+	st, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	preset, err := st.CreatePreset(store.PresetInput{
+		Name: "Codex test", VersionLabel: "9.9.9", HeadersJSON: "{}", RemoveHeaders: "[]",
+		RuleJSON: `{"schema_version":1,"headers":{"User-Agent":{"value":"codex-test/{{version}}","fill_missing":false},"X-Healthcheck-Preset":{"value":"enabled","fill_missing":false}},"remove_headers":[],"generators":{}}`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	enabled := true
+	ch, err := st.CreateChannel(store.ChannelInput{
+		Name: "preset", Enabled: &enabled, Protocol: "openai", BaseURL: up.URL, APIKey: "upstream-secret",
+		ExtraHeadersJSON: `{"X-Channel":"extra"}`, HealthcheckPresetID: &preset.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rewrite := false
+	if _, err := st.CreateChannelModel(ch.ID, store.ChannelModelInput{ClientModel: "model", UpstreamModel: "model", RewriteModel: &rewrite, Enabled: &enabled}); err != nil {
+		t.Fatal(err)
+	}
+	snap := snapshot.NewManager(st)
+	if err := snap.Reload(); err != nil {
+		t.Fatal(err)
+	}
+	res, err := New(st, snap).TestOne(ch.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != http.StatusOK || res.Error != "" {
+		t.Fatalf("healthcheck failed: %+v", res)
+	}
+	if gotPath != "/v1/chat/completions" {
+		t.Fatalf("preset changed healthcheck path: %q", gotPath)
+	}
+	if gotHeaders.Get("User-Agent") != "codex-test/9.9.9" || gotHeaders.Get("X-Healthcheck-Preset") != "enabled" {
+		t.Fatalf("preset headers missing: %v", gotHeaders)
+	}
+	if gotHeaders.Get("Authorization") != "Bearer upstream-secret" || gotHeaders.Get("X-Channel") != "extra" {
+		t.Fatalf("channel auth or extra headers missing: %v", gotHeaders)
+	}
+}
+
 func jsonEqual(a, b any) bool {
 	aa, _ := json.Marshal(a)
 	bb, _ := json.Marshal(b)

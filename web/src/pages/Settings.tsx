@@ -172,9 +172,9 @@ export default function SettingsPage() {
               </div>
             </div>
             <div>
-              <Label>测活提问词（默认 hi）</Label>
+              <Label>测活提问词</Label>
               <Input
-                value={settings.auto_test_prompt ?? 'hi'}
+                value={settings.auto_test_prompt ?? '什么是codex？'}
                 onChange={(e) => setSettings({ ...settings, auto_test_prompt: e.target.value })}
               />
               {(settings.auto_test_enhanced_enabled || 'false') === 'true' && (

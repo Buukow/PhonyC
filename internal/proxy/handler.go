@@ -377,7 +377,7 @@ func (h *Handler) handleCaptureOnly(c *gin.Context, reqID, path string, start ti
 	if h.Capture != nil {
 		captured = h.Capture.TryCapture(c.Request, model)
 	}
-	h.logMeta(reqID, nil, model, "", nil, c.Request.Method, path, http.StatusOK, 0, time.Since(start), "", "passthrough", usage.Tokens{})
+	h.logMeta(reqID, nil, model, "", nil, c.Request.Method, path, http.StatusOK, 0, time.Since(start), "", store.ImpersonationModePassthrough, usage.Tokens{})
 	msg := "【PhonyG 请求捕获】捕获成功：已记录客户端请求头，未转发上游。可在管理台「请求捕获」查看并一键保存为预设。"
 	if !captured {
 		msg = "【PhonyG 请求捕获】当前未布防或未捕获到新请求（可能已捕获过）。请在管理台重新布防后再试。请求仍返回成功，未转发上游。"
@@ -591,7 +591,7 @@ func (h *Handler) authenticate(c *gin.Context, snap *snapshot.Snapshot) (*store.
 			Name:              "header-capture",
 			Key:               key,
 			Enabled:           true,
-			ImpersonationMode: "passthrough",
+			ImpersonationMode: store.ImpersonationModePassthrough,
 		}, nil
 	}
 	uk := snap.KeyByValue[key]

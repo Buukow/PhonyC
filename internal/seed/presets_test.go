@@ -41,6 +41,9 @@ func TestEnsureBuiltinPresetsCreatesFourVariants(t *testing.T) {
 			t.Fatalf("unexpected enhanced description: %q", item.Description)
 		}
 	}
+	if got := st.GetSettingOr(store.SettingAutoTestPrompt, ""); got != "什么是codex？" {
+		t.Fatalf("unexpected default auto-test prompt: %q", got)
+	}
 }
 
 func TestEnsureBuiltinPresetsRefreshesAllBuiltinRules(t *testing.T) {

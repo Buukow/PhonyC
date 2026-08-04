@@ -57,8 +57,9 @@ export default function CapturePage() {
   async function rearm() {
     setLoading(true); setMsg(''); setErr('')
     try {
-      await api('/api/capture/arm', { method: 'POST', body: '{}' })
+      const res = await api<{ key: string }>('/api/capture/arm', { method: 'POST', body: '{}' })
       setMsg('已重新布防，将捕获下一次请求')
+      setData((current) => current ? { ...current, key: res.key, armed: true, captured: null } : current)
       await load()
     } catch (e: any) { setErr(e.message) }
     finally { setLoading(false) }

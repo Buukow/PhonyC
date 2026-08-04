@@ -91,7 +91,7 @@ func (s *Store) CreateUserKey(in UserKeyInput) (*UserKey, error) {
 	}
 	mode := in.ImpersonationMode
 	if mode == "" {
-		mode = "passthrough"
+		mode = ImpersonationModePassthrough
 	}
 	custom := in.CustomHeadersJSON
 	if strings.TrimSpace(custom) == "" {

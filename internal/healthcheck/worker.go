@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/phonyg/phonyg/internal/protocol"
+	"github.com/phonyg/phonyg/internal/requestheaders"
 	"github.com/phonyg/phonyg/internal/snapshot"
 	"github.com/phonyg/phonyg/internal/store"
 	"github.com/phonyg/phonyg/internal/usage"
@@ -220,7 +221,7 @@ func firstChannelModel(st *store.Store, channelID int64) string {
 
 func (w *Worker) promptForCheck() (string, bool) {
 	if !w.Store.GetSettingBool(store.SettingAutoTestEnhanced, false) {
-		return w.Store.GetSettingOr(store.SettingAutoTestPrompt, "hi"), false
+		return w.Store.GetSettingOr(store.SettingAutoTestPrompt, "什么是codex？"), false
 	}
 	raw := w.Store.GetSettingOr(store.SettingAutoTestLexicon, DefaultEnhancedLexiconJSON())
 	lex, err := ParseEnhancedLexicon(raw)
@@ -333,16 +334,12 @@ func (w *Worker) performRequest(ch store.Channel, path string, body []byte) requ
 	if err != nil {
 		return requestAttempt{Error: err.Error()}
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.ContentLength = int64(len(body))
-	protocol.Get(ch.Protocol).ApplyAuth(req.Header, ch.APIKey)
-	var extra map[string]string
-	_ = json.Unmarshal([]byte(ch.ExtraHeadersJSON), &extra)
-	for k, v := range extra {
-		if k != "" {
-			req.Header.Set(k, v)
-		}
+	headers, err := w.buildRequestHeaders(ch, int64(len(body)))
+	if err != nil {
+		return requestAttempt{Error: err.Error()}
 	}
+	req.Header = headers
+	req.ContentLength = int64(len(body))
 	start := time.Now()
 	resp, err := w.Client.Do(req)
 	latency := time.Since(start).Milliseconds()
@@ -355,6 +352,23 @@ func (w *Worker) performRequest(ch store.Channel, path string, body []byte) requ
 		return requestAttempt{StatusCode: resp.StatusCode, LatencyMs: latency, Error: readErr.Error(), ContentType: resp.Header.Get("Content-Type")}
 	}
 	return requestAttempt{StatusCode: resp.StatusCode, LatencyMs: latency, Body: bodyBytes, ContentType: resp.Header.Get("Content-Type")}
+}
+
+func (w *Worker) buildRequestHeaders(ch store.Channel, contentLength int64) (http.Header, error) {
+	key := store.UserKey{ImpersonationMode: store.ImpersonationModePassthrough}
+	snap := w.Snap.Current()
+	if ch.HealthcheckPresetID != nil {
+		if snap == nil || snap.PresetByID[*ch.HealthcheckPresetID] == nil {
+			return nil, fmt.Errorf("healthcheck preset %d not found", *ch.HealthcheckPresetID)
+		}
+		key.ImpersonationMode = store.ImpersonationModePreset
+		key.PresetID = ch.HealthcheckPresetID
+	}
+	headers := requestheaders.BuildUpstreamHeaders(http.Header{}, ch, key, snap, contentLength)
+	if headers.Get("Content-Type") == "" {
+		headers.Set("Content-Type", "application/json")
+	}
+	return headers, nil
 }
 
 func streamAttemptSucceeded(attempt requestAttempt) bool {

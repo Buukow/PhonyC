@@ -28,7 +28,7 @@ const emptyForm = (): KeyForm => ({
   name: '',
   key: '',
   remark: '',
-  impersonation_mode: 'passthrough',
+  impersonation_mode: '透传',
   preset_id: '',
   custom_headers_json: '{}',
 })
@@ -67,7 +67,7 @@ export default function Keys() {
       name: k.name,
       key: '',
       remark: k.remark || '',
-      impersonation_mode: k.impersonation_mode || 'passthrough',
+      impersonation_mode: k.impersonation_mode || '透传',
       preset_id: k.preset_id ? String(k.preset_id) : '',
       custom_headers_json: k.custom_headers_json || '{}',
     })
@@ -93,7 +93,7 @@ export default function Keys() {
     if (form.key.trim()) {
       body.key = form.key.trim()
     }
-    if (form.impersonation_mode === 'preset') {
+    if (form.impersonation_mode === '预设') {
       if (form.preset_id) {
         body.preset_id = Number(form.preset_id)
       }
@@ -154,20 +154,20 @@ export default function Keys() {
             <div>
               <Label>伪装模式</Label>
               <Select value={form.impersonation_mode} onChange={(e) => setForm({ ...form, impersonation_mode: e.target.value })}>
-                <option value="passthrough">passthrough 透传</option>
-                <option value="preset">preset 预设</option>
-                <option value="custom">custom 自定义</option>
+                <option value="透传">透传</option>
+                <option value="预设">预设</option>
+                <option value="自定义">自定义</option>
               </Select>
             </div>
             <div>
               <Label>预设</Label>
-              <Select value={form.preset_id} onChange={(e) => setForm({ ...form, preset_id: e.target.value })} disabled={form.impersonation_mode !== 'preset'}>
+              <Select value={form.preset_id} onChange={(e) => setForm({ ...form, preset_id: e.target.value })} disabled={form.impersonation_mode !== '预设'}>
                 <option value="">选择预设</option>
                 {presets.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </Select>
             </div>
             <div className="md:col-span-2"><Label>备注</Label><Input value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} /></div>
-            {form.impersonation_mode === 'custom' && (
+            {form.impersonation_mode === '自定义' && (
               <div className="md:col-span-2"><Label>自定义 Header JSON</Label><Textarea value={form.custom_headers_json} onChange={(e) => setForm({ ...form, custom_headers_json: e.target.value })} /></div>
             )}
             <div className="md:col-span-2 flex gap-2">

@@ -1,6 +1,8 @@
 package capture
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -117,9 +119,27 @@ func (m *Manager) ClearCaptured() error {
 }
 
 func (m *Manager) Arm() error {
-	_ = m.Store.SetSetting(store.SettingHeaderCaptureArmed, "true")
-	_ = m.Store.SetSetting(store.SettingHeaderCapturePayload, "")
-	return nil
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key, err := newCaptureKey()
+	if err != nil {
+		return err
+	}
+	if err := m.Store.SetSetting(store.SettingHeaderCaptureKey, key); err != nil {
+		return err
+	}
+	if err := m.Store.SetSetting(store.SettingHeaderCaptureArmed, "true"); err != nil {
+		return err
+	}
+	return m.Store.SetSetting(store.SettingHeaderCapturePayload, "")
+}
+
+func newCaptureKey() (string, error) {
+	b := make([]byte, 6)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return "sk-phonyg-capture-" + hex.EncodeToString(b), nil
 }
 
 func (m *Manager) SetEnabled(on bool) error {

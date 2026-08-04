@@ -37,9 +37,9 @@ permalink: /how-to-use/
 进入 **用户 Key → 新建 Key**：
 
 - Key 留空时由系统自动生成；
-- 初次接入可选择 `passthrough`；
-- 模拟 Codex/Claude Code 时选择 `preset` 并绑定预设；
-- 简单覆盖少量 Header 时选择 `custom`。
+- 初次接入可选择“透传”；
+- 模拟 Codex/Claude Code 时选择“预设”并绑定预设；
+- 简单覆盖少量 Header 时选择“自定义”。
 
 ## 4. 发出请求
 

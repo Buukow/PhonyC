@@ -49,7 +49,7 @@ func EnsureBuiltinPresets(st *store.Store) error {
 		store.SettingAutoTestEnabled:      "false",
 		store.SettingAutoTestIntervalMin:  "10",
 		store.SettingAutoTestRandomOffset: "0",
-		store.SettingAutoTestPrompt:       "hi",
+		store.SettingAutoTestPrompt:       "什么是codex？",
 		store.SettingAutoTestModel:        "",
 		store.SettingAutoTestDisableCodes: "401,403,404,503",
 		store.SettingAutoTestEnhanced:     "false",

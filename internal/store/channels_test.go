@@ -48,3 +48,49 @@ func TestUpdateChannelNormalizesManualState(t *testing.T) {
 		t.Fatalf("manual enable must produce normal enabled state: %+v", ch)
 	}
 }
+
+func TestChannelHealthcheckPresetPersistsClearsAndNullsOnDelete(t *testing.T) {
+	st, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+
+	preset, err := st.CreatePreset(PresetInput{Name: "healthcheck", HeadersJSON: "{}", RemoveHeaders: "[]"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	enabled := true
+	channel, err := st.CreateChannel(ChannelInput{
+		Name: "channel", Enabled: &enabled, Protocol: "openai", BaseURL: "http://example.test", HealthcheckPresetID: &preset.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if channel.HealthcheckPresetID == nil || *channel.HealthcheckPresetID != preset.ID {
+		t.Fatalf("healthcheck preset was not stored: %+v", channel)
+	}
+
+	channel, err = st.UpdateChannel(channel.ID, ChannelInput{ClearHealthcheckPreset: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if channel.HealthcheckPresetID != nil {
+		t.Fatalf("healthcheck preset was not cleared: %+v", channel)
+	}
+
+	channel, err = st.UpdateChannel(channel.ID, ChannelInput{HealthcheckPresetID: &preset.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.DeletePreset(preset.ID); err != nil {
+		t.Fatal(err)
+	}
+	channel, err = st.GetChannel(channel.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if channel.HealthcheckPresetID != nil {
+		t.Fatalf("deleted preset did not null channel reference: %+v", channel)
+	}
+}

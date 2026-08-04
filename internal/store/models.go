@@ -2,6 +2,12 @@ package store
 
 import "time"
 
+const (
+	ImpersonationModePassthrough = "透传"
+	ImpersonationModePreset      = "预设"
+	ImpersonationModeCustom      = "自定义"
+)
+
 type AdminUser struct {
 	ID           int64     `json:"id"`
 	Username     string    `json:"username"`
@@ -11,23 +17,24 @@ type AdminUser struct {
 }
 
 type Channel struct {
-	ID               int64      `json:"id"`
-	Name             string     `json:"name"`
-	Enabled          bool       `json:"enabled"`
-	TempDisabled     bool       `json:"temp_disabled"` // auto health-check ban
-	Protocol         string     `json:"protocol"`      // openai | anthropic
-	BaseURL          string     `json:"base_url"`
-	APIKey           string     `json:"api_key"`
-	Priority         int        `json:"priority"`
-	ExtraHeadersJSON string     `json:"extra_headers_json"`
-	TimeoutMS        int        `json:"timeout_ms"`
-	TestModel        string     `json:"test_model"` // optional per-channel override
-	LastTestAt       *time.Time `json:"last_test_at,omitempty"`
-	LastTestStatus   int        `json:"last_test_status"`
-	LastTestMs       int64      `json:"last_test_ms"`
-	LastTestError    string     `json:"last_test_error"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	ID                  int64      `json:"id"`
+	Name                string     `json:"name"`
+	Enabled             bool       `json:"enabled"`
+	TempDisabled        bool       `json:"temp_disabled"` // auto health-check ban
+	Protocol            string     `json:"protocol"`      // openai | anthropic
+	BaseURL             string     `json:"base_url"`
+	APIKey              string     `json:"api_key"`
+	Priority            int        `json:"priority"`
+	ExtraHeadersJSON    string     `json:"extra_headers_json"`
+	TimeoutMS           int        `json:"timeout_ms"`
+	TestModel           string     `json:"test_model"` // optional per-channel override
+	HealthcheckPresetID *int64     `json:"healthcheck_preset_id"`
+	LastTestAt          *time.Time `json:"last_test_at,omitempty"`
+	LastTestStatus      int        `json:"last_test_status"`
+	LastTestMs          int64      `json:"last_test_ms"`
+	LastTestError       string     `json:"last_test_error"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 // Routable reports whether channel can serve proxy traffic.
@@ -52,7 +59,7 @@ type UserKey struct {
 	Key               string    `json:"key"`
 	Enabled           bool      `json:"enabled"`
 	Remark            string    `json:"remark"`
-	ImpersonationMode string    `json:"impersonation_mode"` // passthrough | preset | custom
+	ImpersonationMode string    `json:"impersonation_mode"`
 	PresetID          *int64    `json:"preset_id"`
 	CustomHeadersJSON string    `json:"custom_headers_json"`
 	CreatedAt         time.Time `json:"created_at"`
