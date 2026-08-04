@@ -56,13 +56,14 @@ function rowFor(key: string) {
 }
 
 describe('preset visual tree editor', () => {
-  it('shows localized names and descriptions for builtin presets', async () => {
+  it('shows preset names and descriptions returned by the API', async () => {
+    const user = userEvent.setup()
     vi.mocked(api).mockResolvedValue({
       items: [
-        { id: 1, name: 'codex-tui', version_label: '0.145.0', description: 'backend codex', builtin: true },
-        { id: 2, name: 'claude-cli', version_label: '2.1.220', description: 'backend claude', builtin: true },
-        { id: 3, name: 'codex-enhanced', version_label: '0.145.0', description: 'backend codex enhanced', builtin: true },
-        { id: 4, name: 'claude-enhanced', version_label: '2.1.220', description: 'backend claude enhanced', builtin: true },
+        { id: 1, name: 'Codex 基础', version_label: '0.145.0', description: '模拟 Codex 客户端的基础请求头', builtin: true },
+        { id: 2, name: 'Claude 基础', version_label: '2.1.220', description: '模拟 Claude Code 客户端的基础请求头', builtin: true },
+        { id: 3, name: 'Codex 增强', version_label: '0.145.0', description: '在基础版上增加动态会话信息，更真实但可能会出现问题', builtin: true },
+        { id: 4, name: 'Claude 增强', version_label: '2.1.220', description: '在基础版上增加动态会话信息，更真实但可能会出现问题', builtin: true },
         { id: 5, name: 'custom-name', version_label: '1.0', description: 'custom description', builtin: false },
       ],
     })
@@ -75,10 +76,13 @@ describe('preset visual tree editor', () => {
     expect(screen.getByText('Claude 增强')).toBeTruthy()
     expect(screen.getByText('模拟 Codex 客户端的基础请求头')).toBeTruthy()
     expect(screen.getByText('模拟 Claude Code 客户端的基础请求头')).toBeTruthy()
-    expect(screen.getByText('模拟 Codex 客户端的完整请求头与动态会话信息，强制覆盖同名请求头')).toBeTruthy()
-    expect(screen.getByText('模拟 Claude Code 客户端的完整请求头与动态会话信息，强制覆盖同名请求头')).toBeTruthy()
+    expect(screen.getAllByText('在基础版上增加动态会话信息，更真实但可能会出现问题')).toHaveLength(2)
     expect(screen.getByText('custom-name')).toBeTruthy()
     expect(screen.getByText('custom description')).toBeTruthy()
+
+    await user.click(screen.getAllByRole('button', { name: '编辑' })[0])
+    expect(screen.getByDisplayValue('Codex 基础')).toBeTruthy()
+    expect(screen.getByDisplayValue('模拟 Codex 客户端的基础请求头')).toBeTruthy()
   })
 
   it('shows keys and values as an indented expandable tree', async () => {

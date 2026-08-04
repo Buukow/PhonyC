@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"log"
-	"reflect"
 	"sort"
 
 	"github.com/phonyg/phonyg/internal/healthcheck"
@@ -14,29 +13,6 @@ import (
 )
 
 func EnsureBuiltinPresets(st *store.Store) error {
-	legacyCodexHeaders := map[string]string{
-		"User-Agent":            "codex-tui/{{version}} (Debian 12.0.0; x86_64) xterm-256color (codex-tui; {{version}})",
-		"Originator":            "codex-tui",
-		"Accept":                "text/event-stream",
-		"Content-Type":          "application/json",
-		"X-Codex-Beta-Features": "remote_compaction_v2",
-	}
-	legacyClaudeHeaders := map[string]string{
-		"User-Agent":                  "claude-cli/{{version}} (external, cli)",
-		"X-App":                       "cli",
-		"Anthropic-Version":           "2023-06-01",
-		"Anthropic-Beta":              "claude-code-20250219,interleaved-thinking-2025-05-14,redact-thinking-2026-02-12,thinking-token-count-2026-05-13,context-management-2025-06-27,prompt-caching-scope-2026-01-05,mid-conversation-system-2026-04-07,effort-2025-11-24",
-		"Content-Type":                "application/json",
-		"Accept":                      "application/json",
-		"X-Stainless-Arch":            "x64",
-		"X-Stainless-Lang":            "js",
-		"X-Stainless-Os":              "Linux",
-		"X-Stainless-Package-Version": "0.94.0",
-		"X-Stainless-Runtime":         "node",
-		"X-Stainless-Runtime-Version": "v26.3.0",
-		"X-Stainless-Retry-Count":     "0",
-		"X-Stainless-Timeout":         "600",
-	}
 	codexHeaders := map[string]string{
 		"User-Agent":            "codex_exec/{{version}} (Debian 12.0.0; x86_64) dumb (codex_exec; {{version}})",
 		"Originator":            "codex_exec",
@@ -60,17 +36,11 @@ func EnsureBuiltinPresets(st *store.Store) error {
 		"X-Stainless-Retry-Count":     "0",
 		"X-Stainless-Timeout":         "600",
 	}
-	codexBasic := basicPreset("codex-tui", "OpenAI Codex CLI basic fingerprint", "0.145.0", codexHeaders)
-	claudeBasic := basicPreset("claude-cli", "Anthropic Claude Code CLI basic fingerprint", "2.1.220", claudeHeaders)
-	legacyCodex := legacyBuiltinPreset("codex-tui", "OpenAI Codex TUI client fingerprint", "0.145.0", legacyCodexHeaders)
-	legacyClaude := legacyBuiltinPreset("claude-cli", "Anthropic Claude Code CLI fingerprint", "2.1.220", legacyClaudeHeaders)
-	builtinPresets := []struct {
-		input  store.PresetInput
-		legacy *store.PresetInput
-		force  bool
-	}{{input: codexBasic, legacy: &legacyCodex, force: true}, {input: claudeBasic, legacy: &legacyClaude, force: true}, {input: codexEnhancedPreset(), force: true}, {input: claudeEnhancedPreset(), force: true}}
+	codexBasic := basicPreset("Codex 基础", "模拟 Codex 客户端的基础请求头", "0.145.0", codexHeaders)
+	claudeBasic := basicPreset("Claude 基础", "模拟 Claude Code 客户端的基础请求头", "2.1.220", claudeHeaders)
+	builtinPresets := []store.PresetInput{codexBasic, claudeBasic, codexEnhancedPreset(), claudeEnhancedPreset()}
 	for _, item := range builtinPresets {
-		if err := ensureBuiltinPreset(st, item.input, item.legacy, item.force); err != nil {
+		if err := ensureBuiltinPreset(st, item); err != nil {
 			return err
 		}
 	}
@@ -127,10 +97,10 @@ func EnsureBuiltinPresets(st *store.Store) error {
 	return nil
 }
 
-func ensureBuiltinPreset(st *store.Store, in store.PresetInput, legacy *store.PresetInput, force bool) error {
+func ensureBuiltinPreset(st *store.Store, in store.PresetInput) error {
 	current, err := st.GetPresetByName(in.Name)
 	if err == nil {
-		if current.Builtin && (force || (legacy != nil && builtinPresetMatches(current, *legacy))) {
+		if current.Builtin {
 			_, err = st.UpdatePreset(current.ID, in)
 		}
 		return err
@@ -149,29 +119,6 @@ func basicPreset(name, description, version string, headers map[string]string) s
 	}
 	raw, _ := json.Marshal(headers)
 	return store.PresetInput{Name: name, Description: description, VersionLabel: version, HeadersJSON: string(raw), RemoveHeaders: "[]", RuleJSON: preset.Marshal(doc), Builtin: true}
-}
-
-func legacyBuiltinPreset(name, description, version string, headers map[string]string) store.PresetInput {
-	raw, _ := json.Marshal(headers)
-	doc, _ := preset.LegacyDocument(string(raw), "[]")
-	return store.PresetInput{Name: name, Description: description, VersionLabel: version, HeadersJSON: string(raw), RemoveHeaders: "[]", RuleJSON: preset.Marshal(doc), Builtin: true}
-}
-
-func builtinPresetMatches(current *store.ClientPreset, legacy store.PresetInput) bool {
-	if current.Description != legacy.Description || current.VersionLabel != legacy.VersionLabel || current.RemoveHeaders != legacy.RemoveHeaders {
-		return false
-	}
-	var currentHeaders, legacyHeaders map[string]string
-	if json.Unmarshal([]byte(current.HeadersJSON), &currentHeaders) != nil ||
-		json.Unmarshal([]byte(legacy.HeadersJSON), &legacyHeaders) != nil || !reflect.DeepEqual(currentHeaders, legacyHeaders) {
-		return false
-	}
-	if current.RuleJSON != "" {
-		currentDoc, currentErr := preset.Parse(current.RuleJSON)
-		legacyDoc, legacyErr := preset.Parse(legacy.RuleJSON)
-		return currentErr == nil && legacyErr == nil && reflect.DeepEqual(currentDoc, legacyDoc)
-	}
-	return true
 }
 
 func codexEnhancedPreset() store.PresetInput {
@@ -209,7 +156,7 @@ func codexEnhancedPreset() store.PresetInput {
 		},
 	}
 	return store.PresetInput{
-		Name: "codex-enhanced", Description: "OpenAI Codex CLI enhanced fingerprint with force-overridden headers",
+		Name: "Codex 增强", Description: "在基础版上增加动态会话信息，更真实但可能会出现问题",
 		VersionLabel: "0.145.0", HeadersJSON: "{}", RemoveHeaders: "[]", RuleJSON: preset.Marshal(doc), Builtin: true,
 	}
 }
@@ -242,7 +189,7 @@ func claudeEnhancedPreset() store.PresetInput {
 		},
 	}
 	return store.PresetInput{
-		Name: "claude-enhanced", Description: "Anthropic Claude Code enhanced fingerprint with force-overridden headers",
+		Name: "Claude 增强", Description: "在基础版上增加动态会话信息，更真实但可能会出现问题",
 		VersionLabel: "2.1.220", HeadersJSON: "{}", RemoveHeaders: "[]", RuleJSON: preset.Marshal(doc), Builtin: true,
 	}
 }

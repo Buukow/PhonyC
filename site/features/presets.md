@@ -19,10 +19,10 @@ permalink: /features/presets/
 
 | 预设 | 用途 |
 |---|---|
-| `codex-tui` | Codex CLI 核心静态请求头。 |
-| `codex-enhanced` | Codex 静态指纹 + 相关联的 Session、Thread、Turn 和窗口元数据。 |
-| `claude-cli` | Claude Code 核心 Anthropic/Stainless SDK 请求头。 |
-| `claude-enhanced` | Claude Code 静态指纹 + 动态 `X-Claude-Code-Session-Id`。 |
+| `Codex 基础` | 模拟 Codex 客户端的基础请求头。 |
+| `Codex 增强` | 在基础版上增加动态会话信息，更真实但可能会出现问题。 |
+| `Claude 基础` | 模拟 Claude Code 客户端的基础请求头。 |
+| `Claude 增强` | 在基础版上增加动态会话信息，更真实但可能会出现问题。 |
 
 内置预设不能原地修改。点击编辑可查看完整规则，保存时需要另取名称，创建独立自定义预设。
 

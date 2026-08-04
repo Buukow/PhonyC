@@ -22,7 +22,7 @@ func TestEnsureBuiltinPresetsCreatesFourVariants(t *testing.T) {
 	if err := EnsureBuiltinPresets(st); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"codex-tui", "codex-enhanced", "claude-cli", "claude-enhanced"} {
+	for _, name := range []string{"Codex 基础", "Codex 增强", "Claude 基础", "Claude 增强"} {
 		item, err := st.GetPresetByName(name)
 		if err != nil {
 			t.Fatalf("missing preset %s: %v", name, err)
@@ -32,6 +32,13 @@ func TestEnsureBuiltinPresetsCreatesFourVariants(t *testing.T) {
 		}
 		if _, err := preset.Parse(item.RuleJSON); err != nil {
 			t.Fatalf("preset %s has invalid rule: %v", name, err)
+		}
+	}
+	codexEnhanced, _ := st.GetPresetByName("Codex 增强")
+	claudeEnhanced, _ := st.GetPresetByName("Claude 增强")
+	for _, item := range []*store.ClientPreset{codexEnhanced, claudeEnhanced} {
+		if item.Description != "在基础版上增加动态会话信息，更真实但可能会出现问题" {
+			t.Fatalf("unexpected enhanced description: %q", item.Description)
 		}
 	}
 }
@@ -45,8 +52,8 @@ func TestEnsureBuiltinPresetsRefreshesAllBuiltinRules(t *testing.T) {
 	if err := EnsureBuiltinPresets(st); err != nil {
 		t.Fatal(err)
 	}
-	base, _ := st.GetPresetByName("codex-tui")
-	enhanced, _ := st.GetPresetByName("codex-enhanced")
+	base, _ := st.GetPresetByName("Codex 基础")
+	enhanced, _ := st.GetPresetByName("Codex 增强")
 	if _, err := st.UpdatePreset(base.ID, store.PresetInput{RuleJSON: `{"legacy":"keep"}`}); err != nil {
 		t.Fatal(err)
 	}
@@ -56,8 +63,8 @@ func TestEnsureBuiltinPresetsRefreshesAllBuiltinRules(t *testing.T) {
 	if err := EnsureBuiltinPresets(st); err != nil {
 		t.Fatal(err)
 	}
-	base, _ = st.GetPresetByName("codex-tui")
-	enhanced, _ = st.GetPresetByName("codex-enhanced")
+	base, _ = st.GetPresetByName("Codex 基础")
+	enhanced, _ = st.GetPresetByName("Codex 增强")
 	if base.RuleJSON == `{"legacy":"keep"}` {
 		t.Fatalf("base preset was not refreshed: %s", base.RuleJSON)
 	}
@@ -80,8 +87,8 @@ func TestBasicPresetsUseCapturedFingerprintsAndForceOverride(t *testing.T) {
 		originator string
 		userAgent  string
 	}{
-		{name: "codex-tui", originator: "codex_exec", userAgent: "codex_exec/0.145.0 (Debian 12.0.0; x86_64) dumb (codex_exec; 0.145.0)"},
-		{name: "claude-cli", userAgent: "claude-cli/2.1.220 (external, sdk-cli)"},
+		{name: "Codex 基础", originator: "codex_exec", userAgent: "codex_exec/0.145.0 (Debian 12.0.0; x86_64) dumb (codex_exec; 0.145.0)"},
+		{name: "Claude 基础", userAgent: "claude-cli/2.1.220 (external, sdk-cli)"},
 	}
 	for _, tc := range checks {
 		item, err := st.GetPresetByName(tc.name)
@@ -110,70 +117,6 @@ func TestBasicPresetsUseCapturedFingerprintsAndForceOverride(t *testing.T) {
 		if resolved.Get("User-Agent") != tc.userAgent {
 			t.Fatalf("%s did not force user agent: %q", tc.name, resolved.Get("User-Agent"))
 		}
-	}
-}
-
-func TestLegacyBasicPresetsMigrateWithoutOverwritingUserEdits(t *testing.T) {
-	st, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer st.Close()
-	legacyCodex := legacyBuiltinPreset("codex-tui", "OpenAI Codex TUI client fingerprint", "0.145.0", map[string]string{
-		"User-Agent": "codex-tui/{{version}} (Debian 12.0.0; x86_64) xterm-256color (codex-tui; {{version}})", "Originator": "codex-tui", "Accept": "text/event-stream", "Content-Type": "application/json", "X-Codex-Beta-Features": "remote_compaction_v2",
-	})
-	legacyCodex.Builtin = true
-	if _, err := st.CreatePreset(legacyCodex); err != nil {
-		t.Fatal(err)
-	}
-	custom, err := st.CreatePreset(store.PresetInput{Name: "claude-cli", Description: "user edited", VersionLabel: "custom", HeadersJSON: "{}", RemoveHeaders: "[]", RuleJSON: `{"schema_version":1,"headers":{"X-User":{"value":"keep","fill_missing":false}},"remove_headers":[],"generators":{}}`, Builtin: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := EnsureBuiltinPresets(st); err != nil {
-		t.Fatal(err)
-	}
-	codex, _ := st.GetPresetByName("codex-tui")
-	codexDoc, err := preset.Parse(codex.RuleJSON)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if codexDoc.Headers["Originator"].Value != "codex_exec" || codexDoc.Headers["Originator"].FillMissing {
-		t.Fatalf("legacy codex was not migrated: %+v", codexDoc.Headers["Originator"])
-	}
-	claude, _ := st.GetPreset(custom.ID)
-	if claude.Description == "user edited" || strings.Contains(claude.RuleJSON, "X-User") {
-		t.Fatalf("builtin preset was not refreshed: %+v", claude)
-	}
-}
-
-func TestLegacyBasicPresetWithMetadataEditIsPreserved(t *testing.T) {
-	st, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer st.Close()
-	legacy := legacyBuiltinPreset("codex-tui", "user changed description", "0.145.0", map[string]string{
-		"User-Agent": "codex-tui/{{version}} (Debian 12.0.0; x86_64) xterm-256color (codex-tui; {{version}})", "Originator": "codex-tui", "Accept": "text/event-stream", "Content-Type": "application/json", "X-Codex-Beta-Features": "remote_compaction_v2",
-	})
-	legacy.Builtin = true
-	created, err := st.CreatePreset(legacy)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := EnsureBuiltinPresets(st); err != nil {
-		t.Fatal(err)
-	}
-	got, _ := st.GetPreset(created.ID)
-	if got.Description == "user changed description" {
-		t.Fatalf("builtin metadata was not refreshed: %+v", got)
-	}
-	doc, err := preset.Parse(got.RuleJSON)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if doc.Headers["Originator"].Value != "codex_exec" {
-		t.Fatalf("builtin rule was not refreshed: %+v", doc.Headers["Originator"])
 	}
 }
 
