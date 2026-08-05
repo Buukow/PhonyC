@@ -24,6 +24,7 @@ const requiredFiles = [
   'site/_config.yml',
   'site/_includes/head_custom.html',
   'site/assets/js/navigation-state.js',
+  'site/assets/js/page-layout.js',
   'site/_sass/custom/custom.scss',
   'site/index.md',
   'site/getting-started.md',
@@ -54,6 +55,13 @@ requireText('site/_config.yml', [
 
 requireText('site/_includes/head_custom.html', [
   ['navigation state script include', /navigation-state\.js/],
+  ['page layout script include', /page-layout\.js/],
+])
+
+requireText('site/assets/js/page-layout.js', [
+  ['page table of contents', /page-toc/],
+  ['heading scroll tracking', /addEventListener\('scroll'/],
+  ['table of contents label', /本页目录/],
 ])
 
 requireText('site/assets/js/navigation-state.js', [
@@ -65,6 +73,11 @@ requireText('site/assets/js/navigation-state.js', [
 requireText('site/_sass/custom/custom.scss', [
   ['emoji font fallback', /Noto Color Emoji/],
   ['emoji presentation', /font-variant-emoji:\s*emoji/],
+  ['three-column layout', /grid-template-columns:\s*minmax\(0, 1fr\) 14rem/],
+  ['page table of contents styles', /\.page-toc-inner/],
+  ['reduced motion support', /prefers-reduced-motion:\s*reduce/],
+  ['hidden document scrollbar', /body::\-webkit-scrollbar/],
+  ['hidden navigation scrollbar', /\.site-nav::\-webkit-scrollbar/],
 ])
 
 requireText('site/index.md', [

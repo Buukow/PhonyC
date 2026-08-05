@@ -1,6 +1,6 @@
 .site-title {
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 // Keep the star in starred navigation titles as ordinary text while giving
@@ -19,7 +19,176 @@
 .main-content h1,
 .main-content h2,
 .main-content h3 {
-  letter-spacing: -0.015em;
+  letter-spacing: 0;
+  scroll-margin-top: 6.5rem;
+}
+
+html { scroll-behavior: smooth; }
+
+html,
+body {
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+.site-nav::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.site-nav {
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.site-nav .nav-list-item > .nav-list {
+  display: none;
+}
+
+.site-nav .nav-list-item.active > .nav-list {
+  display: block;
+}
+
+.site-nav .nav-list-link,
+.site-nav .nav-list-expander,
+.site-nav .nav-list-expander svg,
+.feature-card {
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.site-nav .nav-list-link:hover { transform: translateX(.15rem); }
+.feature-card:hover { transform: translateY(-.15rem); }
+
+.page-toc { display: none; }
+
+@media (min-width: 75rem) {
+  .side-bar {
+    width: 17rem;
+    min-width: 17rem;
+    align-items: stretch;
+  }
+
+  .site-nav,
+  .site-header,
+  .site-footer {
+    width: 100%;
+  }
+
+  .side-bar + .main {
+    width: calc(100% - 17rem);
+    max-width: none;
+    margin-left: 17rem;
+  }
+
+  .main-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: rgba(255, 255, 255, .96);
+    backdrop-filter: blur(.75rem);
+  }
+
+  .main-content-wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 14rem;
+    grid-template-rows: auto 1fr;
+    column-gap: clamp(2rem, 3vw, 3.5rem);
+    width: 100%;
+    min-width: 0;
+    max-width: 92rem;
+    padding-right: clamp(2rem, 4vw, 4rem);
+    padding-left: clamp(2rem, 4vw, 4rem);
+    margin: 0 auto;
+  }
+
+  .breadcrumb-nav {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .main-content {
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    padding: 0;
+  }
+
+  .page-toc {
+    display: block;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    min-width: 0;
+  }
+
+  .page-toc-inner {
+    position: fixed;
+    top: 5.5rem;
+    right: clamp(2rem, 4vw, 4rem);
+    width: 14rem;
+    max-height: none;
+    padding-left: 1rem;
+    overflow: visible;
+    min-width: 0;
+    border-left: 1px solid #dfdbd1;
+  }
+
+  .page-toc-title {
+    margin-bottom: .65rem;
+    color: #34483b;
+    font-size: .78rem;
+    font-weight: 700;
+  }
+
+  .page-toc-nav {
+    display: flex;
+    flex-direction: column;
+    gap: .12rem;
+    min-width: 0;
+  }
+
+  .page-toc-link {
+    position: relative;
+    display: block;
+    padding: .35rem .45rem;
+    color: #737d76;
+    font-size: .78rem;
+    line-height: 1.45;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+    transition: color 160ms ease, background-color 160ms ease, transform 180ms ease;
+  }
+
+  .page-toc-link:hover,
+  .page-toc-link.active {
+    color: #45634f;
+    text-decoration: none;
+    transform: translateX(.18rem);
+  }
+
+  .page-toc-link.active {
+    background: #f1f4ee;
+    font-weight: 650;
+  }
+
+  .page-toc-link.active::before {
+    position: absolute;
+    top: .35rem;
+    bottom: .35rem;
+    left: -1.05rem;
+    width: 2px;
+    background: #56725f;
+    content: "";
+  }
+
+  .page-toc-level-3 { padding-left: 1rem; }
 }
 
 .hero {
@@ -114,4 +283,19 @@ table { background: #fff; }
   .feature-grid { grid-template-columns: 1fr; }
   .hero { padding: 1.3rem; }
   .hero h1 { font-size: 1.9rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+
+  .main-content,
+  .docs-ready .main-content,
+  .site-nav .nav-list-link,
+  .site-nav .nav-list-expander,
+  .site-nav .nav-list-expander svg,
+  .feature-card,
+  .page-toc-link {
+    transition: none;
+    transform: none;
+  }
 }

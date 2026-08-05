@@ -48,11 +48,19 @@
   }
 
   function init() {
-    // The theme registers its ready callback before this custom include. Restore
-    // after activateNav() has run so the current page remains active as well.
-    window.setTimeout(restoreState, 0);
+    // Restore before the browser paints the ready document so expanded groups
+    // never collapse and reopen while navigating between pages.
+    restoreState();
 
     document.addEventListener('click', function (event) {
+      var parentLink = event.target.closest && event.target.closest('#site-nav .nav-list-item > .nav-list-link');
+      if (parentLink && parentLink.parentNode.querySelector(':scope > .nav-list')) {
+        event.preventDefault();
+        var expander = parentLink.parentNode.querySelector(':scope > .nav-list-expander');
+        if (expander) expander.click();
+        return;
+      }
+
       var button = event.target.closest && event.target.closest('#site-nav .nav-list-expander');
       if (!button) return;
 
