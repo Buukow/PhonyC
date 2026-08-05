@@ -1,0 +1,446 @@
+
+
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+
+  <link rel="stylesheet" href="/PhonyC/assets/css/just-the-docs-default.css">
+
+  <link rel="stylesheet" href="/PhonyC/assets/css/just-the-docs-head-nav.css" id="jtd-head-nav-stylesheet">
+
+  <style id="jtd-nav-activation">
+  
+
+    .site-nav > ul.nav-list:first-child > li > a,
+    
+    .site-nav > ul.nav-list:first-child > li > ul > li:not(:nth-child(5)) > a,
+    .site-nav > ul.nav-list:first-child > li > ul > li > ul > li a {
+      background-image: none;
+    }
+
+    .site-nav > ul.nav-list:not(:first-child) a,
+    .site-nav li.external a {
+      background-image: none;
+    }
+
+    .site-nav > ul.nav-list:first-child > li:nth-child(3) > ul > li:nth-child(5) > a {
+      font-weight: 600;
+      text-decoration: none;
+    }.site-nav > ul.nav-list:first-child > li:nth-child(3) > button svg,
+    .site-nav > ul.nav-list:first-child > li:nth-child(3) > ul > li:nth-child(5) > button svg {
+      transform: rotate(-90deg);
+    }.site-nav > ul.nav-list:first-child > li.nav-list-item:nth-child(3) > ul.nav-list,
+    .site-nav > ul.nav-list:first-child > li.nav-list-item:nth-child(3) > ul.nav-list > li.nav-list-item:nth-child(5) > ul.nav-list {
+      display: block;
+    }
+  </style>
+
+  
+
+  
+    <script src="/PhonyC/assets/js/vendor/lunr.min.js"></script>
+  
+
+  <script src="/PhonyC/assets/js/just-the-docs.js"></script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+
+
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>请求捕获 ⭐ | PhonyG 文档</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="请求捕获 ⭐" />
+<meta property="og:locale" content="zh_CN" />
+<meta name="description" content="PhonyG 轻量 AI API 中转网关的部署、配置与功能指南" />
+<meta name="twitter:description" property="og:description" content="PhonyG 轻量 AI API 中转网关的部署、配置与功能指南" />
+<link rel="canonical" href="https://buukow.github.io/PhonyC/features/capture/" />
+<meta property="og:url" content="https://buukow.github.io/PhonyC/features/capture/" />
+<meta property="og:site_name" content="PhonyG 文档" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="请求捕获 ⭐" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"PhonyG 轻量 AI API 中转网关的部署、配置与功能指南","headline":"请求捕获 ⭐","url":"https://buukow.github.io/PhonyC/features/capture/"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+  <script src="/PhonyC/assets/js/navigation-state.js"></script>
+<script src="/PhonyC/assets/js/page-layout.js"></script>
+
+
+</head>
+
+<body>
+  <a class="skip-to-main" href="#main-content">Skip to main content</a>
+  <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
+  <symbol id="svg-link" viewBox="0 0 24 24">
+  <title>Link</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link">
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+  </svg>
+</symbol>
+
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+  <title>Menu</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu">
+    <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
+  </svg>
+</symbol>
+
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+  <title>Expand</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right">
+    <polyline points="9 18 15 12 9 6"></polyline>
+  </svg>
+</symbol>
+
+  <!-- Feather. MIT License: https://github.com/feathericons/feather/blob/master/LICENSE -->
+<symbol id="svg-external-link" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-external-link">
+  <title id="svg-external-link-title">(external link)</title>
+  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>
+</symbol>
+
+  
+    <symbol id="svg-doc" viewBox="0 0 24 24">
+  <title>Document</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file">
+    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline>
+  </svg>
+</symbol>
+
+    <symbol id="svg-search" viewBox="0 0 24 24">
+  <title>Search</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search">
+    <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+  </svg>
+</symbol>
+
+  
+  
+    <!-- Bootstrap Icons. MIT License: https://github.com/twbs/icons/blob/main/LICENSE.md -->
+<symbol id="svg-copy" viewBox="0 0 16 16">
+  <title>Copy</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clipboard" viewBox="0 0 16 16">
+    <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+    <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+  </svg>
+</symbol>
+<symbol id="svg-copied" viewBox="0 0 16 16">
+  <title>Copied</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clipboard-check-fill" viewBox="0 0 16 16">
+    <path d="M6.5 0A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3Zm3 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3Z"/>
+    <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1A2.5 2.5 0 0 1 9.5 5h-3A2.5 2.5 0 0 1 4 2.5v-1Zm6.854 7.354-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 0 1 .708-.708L7.5 10.793l2.646-2.647a.5.5 0 0 1 .708.708Z"/>
+  </svg>
+</symbol>
+
+  
+</svg>
+
+  
+    <div class="side-bar">
+  <div class="site-header" role="banner">
+    <a href="/PhonyC/" class="site-title lh-tight">
+  PhonyG 文档
+
+</a>
+    <button id="menu-button" class="site-button btn-reset" aria-label="Menu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><use xlink:href="#svg-menu"></use></svg>
+    </button>
+  </div>
+
+  <nav aria-label="Main" id="site-nav" class="site-nav">
+  
+  
+    <ul class="nav-list"><li class="nav-list-item"><a href="/PhonyC/" class="nav-list-link">首页</a></li><li class="nav-list-item"><button class="nav-list-expander btn-reset" aria-label="快速开始 submenu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use xlink:href="#svg-arrow-right"></use></svg>
+      </button><a href="/PhonyC/getting-started/" class="nav-list-link">快速开始</a><ul class="nav-list"><li class="nav-list-item"><a href="/PhonyC/local-build/" class="nav-list-link">本地构建</a></li><li class="nav-list-item"><a href="/PhonyC/docker/" class="nav-list-link">Docker 部署</a></li><li class="nav-list-item"><a href="/PhonyC/how-to-use/" class="nav-list-link">如何使用</a></li></ul></li><li class="nav-list-item"><button class="nav-list-expander btn-reset" aria-label="功能指南 submenu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use xlink:href="#svg-arrow-right"></use></svg>
+      </button><a href="/PhonyC/features/" class="nav-list-link">功能指南</a><ul class="nav-list"><li class="nav-list-item"><a href="/PhonyC/features/dashboard/" class="nav-list-link">概览与统计</a></li><li class="nav-list-item"><a href="/PhonyC/features/channels/" class="nav-list-link">渠道与模型映射</a></li><li class="nav-list-item"><a href="/PhonyC/features/keys/" class="nav-list-link">用户 Key 与伪装模式</a></li><li class="nav-list-item"><a href="/PhonyC/features/presets/" class="nav-list-link">客户端预设 ⭐</a></li><li class="nav-list-item"><a href="/PhonyC/features/capture/" class="nav-list-link">请求捕获 ⭐</a></li><li class="nav-list-item"><a href="/PhonyC/features/logs/" class="nav-list-link">请求日志</a></li><li class="nav-list-item"><a href="/PhonyC/features/healthcheck/" class="nav-list-link">自动测活与增强模式 ⭐</a></li><li class="nav-list-item"><a href="/PhonyC/features/retry/" class="nav-list-link">自动重试</a></li></ul></li><li class="nav-list-item"><button class="nav-list-expander btn-reset" aria-label="配置参考 submenu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use xlink:href="#svg-arrow-right"></use></svg>
+      </button><a href="/PhonyC/reference/" class="nav-list-link">配置参考</a><ul class="nav-list"><li class="nav-list-item"><a href="/PhonyC/reference/environment/" class="nav-list-link">环境变量</a></li><li class="nav-list-item"><a href="/PhonyC/reference/api/" class="nav-list-link">API 路径与协议</a></li><li class="nav-list-item"><a href="/PhonyC/reference/operations/" class="nav-list-link">升级、备份与回滚</a></li><li class="nav-list-item"><a href="/PhonyC/reference/troubleshooting/" class="nav-list-link">故障排查</a></li></ul></li></ul>
+  
+</nav>
+
+
+
+
+  
+  
+    <footer class="site-footer">
+      This site uses <a href="https://github.com/just-the-docs/just-the-docs">Just the Docs</a>, a documentation theme for Jekyll.
+    </footer>
+  
+</div>
+
+  
+  <div class="main" id="top">
+    <div id="main-header" class="main-header">
+  
+    
+
+<div class="search" role="search">
+  <div class="search-input-wrap">
+    <input type="text" id="search-input" class="search-input" tabindex="0" placeholder="Search PhonyG 文档" autocomplete="off">
+    <label for="search-input" class="search-label">
+      <span class="sr-only">Search PhonyG 文档</span>
+      <svg viewBox="0 0 24 24" class="search-icon" aria-hidden="true"><use xlink:href="#svg-search"></use></svg>
+    </label>
+  </div>
+  <div id="search-results" class="search-results"></div>
+</div>
+
+  
+  
+  
+    <nav aria-label="Auxiliary" class="aux-nav">
+  <ul class="aux-nav-list">
+    
+      <li class="aux-nav-list-item">
+        <a href="https://github.com/Buukow/PhonyC" class="site-button"
+          
+          target="_blank" rel="noopener noreferrer"
+          
+        >
+          PhonyG on GitHub
+        </a>
+      </li>
+    
+  </ul>
+</nav>
+
+  
+</div>
+
+    <div class="main-content-wrap">
+      <nav aria-label="Breadcrumb" class="breadcrumb-nav">
+  <ol class="breadcrumb-nav-list">
+    <li class="breadcrumb-nav-list-item"><a href="/PhonyC/features/">功能指南</a></li>
+    <li class="breadcrumb-nav-list-item"><span>请求捕获 ⭐</span></li>
+  </ol>
+</nav>
+
+
+      <div id="main-content" class="main-content">
+        <main>
+          
+            <h1 id="请求捕获-">
+  
+  
+    <a href="#请求捕获-" class="anchor-heading" aria-labelledby="请求捕获-"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> 请求捕获 ⭐
+  
+  
+</h1>
+    
+
+<p>请求捕获用于记录 Codex、Claude Code 或其他客户端发给 PhonyG 的过滤后完整业务 Header，再一键保存为客户端预设。捕获 Key 的请求 <strong>只捕获不转发</strong>（capture-only），不会访问任何上游。</p>
+<h2 id="四步完成捕获">
+  
+  
+    <a href="#四步完成捕获" class="anchor-heading" aria-labelledby="四步完成捕获"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> 四步完成捕获
+  
+  
+</h2>
+    
+
+<ol class="step-list">
+  <li><strong>开启捕获。</strong>进入侧栏“请求捕获”，点击开启。系统生成新的捕获 API Key，并进入“等待首次请求”布防状态。</li>
+  <li><strong>让 AI 客户端调用 PhonyG。</strong>把客户端 Base URL 指向 PhonyG，Authorization 或 API Key 改为页面当前显示的捕获 Key，然后发起一次对话。</li>
+  <li><strong>确认客户端返回。</strong>PhonyG 按 OpenAI/Anthropic 路径返回协议适配后的成功内容，客户端应显示 <code>captured</code>。</li>
+  <li><strong>查看并保存。</strong>管理台显示捕获到的业务 Header；填写预设名后一键保存。同名自定义预设可覆盖，内置预设不会被覆盖。</li>
+</ol>
+
+<figure class="screenshot">
+  <img src="/PhonyC/assets/images/capture.png" alt="PhonyG 请求捕获页面" />
+  <figcaption>捕获开关、布防状态、系统固定 API Key 和保存预设入口。</figcaption>
+</figure>
+<h2 id="请求流转">
+  
+  
+    <a href="#请求流转" class="anchor-heading" aria-labelledby="请求流转"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> 请求流转
+  
+  
+</h2>
+    
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>AI 客户端
+  → PhonyG 固定捕获 Key
+  → 过滤鉴权 / Cookie / Host / Content-Length / 压缩 / hop-by-hop Header
+  → 保存下一次请求的业务 Header
+  → 写入 capture-only 请求元数据
+  → 返回 captured（不访问上游）
+</code></pre></div></div>
+<h2 id="成功返回">
+  
+  
+    <a href="#成功返回" class="anchor-heading" aria-labelledby="成功返回"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> 成功返回
+  
+  
+</h2>
+    
+
+<figure class="screenshot">
+  <img src="/PhonyC/assets/images/capture-client-response.png" alt="AI 客户端显示 captured 成功响应" />
+  <figcaption>AI 客户端收到 <code>captured</code>，证明请求已被 PhonyG 捕获。此图位由用户提供的客户端截图替换。</figcaption>
+</figure>
+
+<p>成功时，AI 客户端正常结束本次调用，管理台由“等待首次请求”切换为“已捕获/未布防”。这不表示上游模型生成了回复；它只表示 PhonyG 已完成捕获。</p>
+<h2 id="捕获结果">
+  
+  
+    <a href="#捕获结果" class="anchor-heading" aria-labelledby="捕获结果"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> 捕获结果
+  
+  
+</h2>
+    
+
+<figure class="screenshot">
+  <img src="/PhonyC/assets/images/capture-headers.png" alt="PhonyG 捕获到的客户端业务 Header" />
+  <figcaption>捕获结果保留客户端标识、SDK 指纹和 Session-Id 等会话级业务 Header。</figcaption>
+</figure>
+
+<p>常见保留字段包括：</p>
+
+<ul>
+  <li>Codex：<code class="language-plaintext highlighter-rouge">Session-Id</code>、<code class="language-plaintext highlighter-rouge">Thread-Id</code>、<code class="language-plaintext highlighter-rouge">X-Client-Request-Id</code>、<code class="language-plaintext highlighter-rouge">X-Codex-Turn-Metadata</code>、<code class="language-plaintext highlighter-rouge">X-Codex-Window-Id</code>；</li>
+  <li>Claude Code：<code class="language-plaintext highlighter-rouge">X-Claude-Code-Session-Id</code>、Anthropic/Stainless SDK 指纹 Header；</li>
+  <li>普通业务 Header：<code class="language-plaintext highlighter-rouge">User-Agent</code>、<code class="language-plaintext highlighter-rouge">Accept</code>、客户端版本与功能标记。</li>
+</ul>
+<h3 id="哪些-header-会过滤">
+  
+  
+    <a href="#哪些-header-会过滤" class="anchor-heading" aria-labelledby="哪些-header-会过滤"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> 哪些 Header 会过滤
+  
+  
+</h3>
+    
+
+<p>捕获不会保存 <code class="language-plaintext highlighter-rouge">Authorization</code>、<code class="language-plaintext highlighter-rouge">X-Api-Key</code>、<code class="language-plaintext highlighter-rouge">Cookie</code>、<code class="language-plaintext highlighter-rouge">Host</code>、<code class="language-plaintext highlighter-rouge">Content-Length</code>、<code class="language-plaintext highlighter-rouge">Accept-Encoding</code>、<code class="language-plaintext highlighter-rouge">Connection</code>、<code class="language-plaintext highlighter-rouge">Keep-Alive</code>、<code class="language-plaintext highlighter-rouge">Transfer-Encoding</code>、<code class="language-plaintext highlighter-rouge">TE</code>、<code class="language-plaintext highlighter-rouge">Trailer</code>、<code class="language-plaintext highlighter-rouge">Upgrade</code>、代理鉴权和其他 hop-by-hop/传输字段。</p>
+
+<p class="warning">这里的“完整”指过滤范围内的完整业务 Header 名和值。当前捕获存储是 <code class="language-plaintext highlighter-rouge">map[string]string</code>：同名 Header 出现多个值时只保留第一个值（首值），不会保存重复 Header 的全部多值实例。</p>
+<h2 id="布防与-403">
+  
+  
+    <a href="#布防与-403" class="anchor-heading" aria-labelledby="布防与-403"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> 布防与 403
+  
+  
+</h2>
+    
+
+<ul>
+  <li>开启捕获会生成新的捕获 Key，立即布防并清除旧捕获；</li>
+  <li>布防状态只记录下一次使用固定 Key 的请求；</li>
+  <li>捕获完成后自动取消布防；</li>
+  <li>要捕获下一次请求，点击“重新布防”；每次重新布防都会生成新的捕获 Key，页面会立即刷新显示，旧 Key 随即失效；</li>
+  <li>捕获关闭或未布防时继续使用该固定 Key，会返回 <strong>403</strong>；</li>
+  <li>普通用户 Key 不受捕获页面布防状态影响。</li>
+</ul>
+<h2 id="保存为客户端预设">
+  
+  
+    <a href="#保存为客户端预设" class="anchor-heading" aria-labelledby="保存为客户端预设"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> 保存为客户端预设
+  
+  
+</h2>
+    
+
+<p>每个捕获 Header 转换为 schema v1 顶层规则，默认使用 <strong>强制覆盖</strong>。系统不会猜测哪些值应该动态变化，也不会自动创建 Session 生成器。建议另存后进入 <a href="/PhonyC/features/presets/">客户端预设</a>：</p>
+
+<ol>
+  <li>将静态客户端指纹保留为强制覆盖；</li>
+  <li>把 Session/Thread/Turn 等值替换为 UUID 或时间生成器；</li>
+  <li>对确实应该尊重客户端值的字段改为缺失补全；</li>
+  <li>使用预览确认最终 Header。</li>
+</ol>
+<h2 id="请求日志语义">
+  
+  
+    <a href="#请求日志语义" class="anchor-heading" aria-labelledby="请求日志语义"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> 请求日志语义
+  
+  
+</h2>
+    
+
+<p>捕获请求也会出现在 PhonyG 请求日志中，但它不是普通代理调用：</p>
+
+<div class="table-wrapper"><table>
+  <thead>
+    <tr>
+      <th>字段</th>
+      <th>值</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>状态</td>
+      <td><code class="language-plaintext highlighter-rouge">200</code></td>
+    </tr>
+    <tr>
+      <td>客户端模型</td>
+      <td>从请求体读取；没有时使用捕获占位模型</td>
+    </tr>
+    <tr>
+      <td>用户 Key</td>
+      <td>空（固定捕获 Key 不创建普通用户 Key 统计）</td>
+    </tr>
+    <tr>
+      <td>渠道</td>
+      <td>空</td>
+    </tr>
+    <tr>
+      <td>Token</td>
+      <td>输入、输出、合计均为 0（零 Token）</td>
+    </tr>
+    <tr>
+      <td>错误摘要</td>
+      <td>空字符串</td>
+    </tr>
+    <tr>
+      <td>伪装模式</td>
+      <td><code class="language-plaintext highlighter-rouge">透传</code> 元数据</td>
+    </tr>
+  </tbody>
+</table></div>
+
+<p>日志写入是 best-effort；即使本地日志写入异常，也不会把捕获请求转发到上游。</p>
+
+          
+
+          
+            
+          
+        </main>
+        
+
+  <hr>
+  <footer>
+    
+      <p><a href="#top" id="back-to-top">返回顶部</a></p>
+    
+
+    <p class="text-small text-grey-dk-000 mb-0">PhonyG 文档 · GitHub Pages + Jekyll</p>
+
+
+    
+  </footer>
+
+
+      </div>
+    </div>
+    
+      
+
+<div class="search-overlay"></div>
+
+    
+  </div>
+
+  
+</body>
+</html>
+

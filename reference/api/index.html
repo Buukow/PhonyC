@@ -1,0 +1,395 @@
+
+
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+
+  <link rel="stylesheet" href="/PhonyC/assets/css/just-the-docs-default.css">
+
+  <link rel="stylesheet" href="/PhonyC/assets/css/just-the-docs-head-nav.css" id="jtd-head-nav-stylesheet">
+
+  <style id="jtd-nav-activation">
+  
+
+    .site-nav > ul.nav-list:first-child > li > a,
+    
+    .site-nav > ul.nav-list:first-child > li > ul > li:not(:nth-child(2)) > a,
+    .site-nav > ul.nav-list:first-child > li > ul > li > ul > li a {
+      background-image: none;
+    }
+
+    .site-nav > ul.nav-list:not(:first-child) a,
+    .site-nav li.external a {
+      background-image: none;
+    }
+
+    .site-nav > ul.nav-list:first-child > li:nth-child(4) > ul > li:nth-child(2) > a {
+      font-weight: 600;
+      text-decoration: none;
+    }.site-nav > ul.nav-list:first-child > li:nth-child(4) > button svg,
+    .site-nav > ul.nav-list:first-child > li:nth-child(4) > ul > li:nth-child(2) > button svg {
+      transform: rotate(-90deg);
+    }.site-nav > ul.nav-list:first-child > li.nav-list-item:nth-child(4) > ul.nav-list,
+    .site-nav > ul.nav-list:first-child > li.nav-list-item:nth-child(4) > ul.nav-list > li.nav-list-item:nth-child(2) > ul.nav-list {
+      display: block;
+    }
+  </style>
+
+  
+
+  
+    <script src="/PhonyC/assets/js/vendor/lunr.min.js"></script>
+  
+
+  <script src="/PhonyC/assets/js/just-the-docs.js"></script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+
+
+
+  <!-- Begin Jekyll SEO tag v2.9.0 -->
+<title>API 路径与协议 | PhonyG 文档</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="API 路径与协议" />
+<meta property="og:locale" content="zh_CN" />
+<meta name="description" content="PhonyG 轻量 AI API 中转网关的部署、配置与功能指南" />
+<meta name="twitter:description" property="og:description" content="PhonyG 轻量 AI API 中转网关的部署、配置与功能指南" />
+<link rel="canonical" href="https://buukow.github.io/PhonyC/reference/api/" />
+<meta property="og:url" content="https://buukow.github.io/PhonyC/reference/api/" />
+<meta property="og:site_name" content="PhonyG 文档" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="API 路径与协议" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"PhonyG 轻量 AI API 中转网关的部署、配置与功能指南","headline":"API 路径与协议","url":"https://buukow.github.io/PhonyC/reference/api/"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+  <script src="/PhonyC/assets/js/navigation-state.js"></script>
+<script src="/PhonyC/assets/js/page-layout.js"></script>
+
+
+</head>
+
+<body>
+  <a class="skip-to-main" href="#main-content">Skip to main content</a>
+  <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
+  <symbol id="svg-link" viewBox="0 0 24 24">
+  <title>Link</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link">
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+  </svg>
+</symbol>
+
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+  <title>Menu</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu">
+    <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
+  </svg>
+</symbol>
+
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+  <title>Expand</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right">
+    <polyline points="9 18 15 12 9 6"></polyline>
+  </svg>
+</symbol>
+
+  <!-- Feather. MIT License: https://github.com/feathericons/feather/blob/master/LICENSE -->
+<symbol id="svg-external-link" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-external-link">
+  <title id="svg-external-link-title">(external link)</title>
+  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>
+</symbol>
+
+  
+    <symbol id="svg-doc" viewBox="0 0 24 24">
+  <title>Document</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file">
+    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline>
+  </svg>
+</symbol>
+
+    <symbol id="svg-search" viewBox="0 0 24 24">
+  <title>Search</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search">
+    <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+  </svg>
+</symbol>
+
+  
+  
+    <!-- Bootstrap Icons. MIT License: https://github.com/twbs/icons/blob/main/LICENSE.md -->
+<symbol id="svg-copy" viewBox="0 0 16 16">
+  <title>Copy</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clipboard" viewBox="0 0 16 16">
+    <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+    <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+  </svg>
+</symbol>
+<symbol id="svg-copied" viewBox="0 0 16 16">
+  <title>Copied</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clipboard-check-fill" viewBox="0 0 16 16">
+    <path d="M6.5 0A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3Zm3 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3Z"/>
+    <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1A2.5 2.5 0 0 1 9.5 5h-3A2.5 2.5 0 0 1 4 2.5v-1Zm6.854 7.354-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 0 1 .708-.708L7.5 10.793l2.646-2.647a.5.5 0 0 1 .708.708Z"/>
+  </svg>
+</symbol>
+
+  
+</svg>
+
+  
+    <div class="side-bar">
+  <div class="site-header" role="banner">
+    <a href="/PhonyC/" class="site-title lh-tight">
+  PhonyG 文档
+
+</a>
+    <button id="menu-button" class="site-button btn-reset" aria-label="Menu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><use xlink:href="#svg-menu"></use></svg>
+    </button>
+  </div>
+
+  <nav aria-label="Main" id="site-nav" class="site-nav">
+  
+  
+    <ul class="nav-list"><li class="nav-list-item"><a href="/PhonyC/" class="nav-list-link">首页</a></li><li class="nav-list-item"><button class="nav-list-expander btn-reset" aria-label="快速开始 submenu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use xlink:href="#svg-arrow-right"></use></svg>
+      </button><a href="/PhonyC/getting-started/" class="nav-list-link">快速开始</a><ul class="nav-list"><li class="nav-list-item"><a href="/PhonyC/local-build/" class="nav-list-link">本地构建</a></li><li class="nav-list-item"><a href="/PhonyC/docker/" class="nav-list-link">Docker 部署</a></li><li class="nav-list-item"><a href="/PhonyC/how-to-use/" class="nav-list-link">如何使用</a></li></ul></li><li class="nav-list-item"><button class="nav-list-expander btn-reset" aria-label="功能指南 submenu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use xlink:href="#svg-arrow-right"></use></svg>
+      </button><a href="/PhonyC/features/" class="nav-list-link">功能指南</a><ul class="nav-list"><li class="nav-list-item"><a href="/PhonyC/features/dashboard/" class="nav-list-link">概览与统计</a></li><li class="nav-list-item"><a href="/PhonyC/features/channels/" class="nav-list-link">渠道与模型映射</a></li><li class="nav-list-item"><a href="/PhonyC/features/keys/" class="nav-list-link">用户 Key 与伪装模式</a></li><li class="nav-list-item"><a href="/PhonyC/features/presets/" class="nav-list-link">客户端预设 ⭐</a></li><li class="nav-list-item"><a href="/PhonyC/features/capture/" class="nav-list-link">请求捕获 ⭐</a></li><li class="nav-list-item"><a href="/PhonyC/features/logs/" class="nav-list-link">请求日志</a></li><li class="nav-list-item"><a href="/PhonyC/features/healthcheck/" class="nav-list-link">自动测活与增强模式 ⭐</a></li><li class="nav-list-item"><a href="/PhonyC/features/retry/" class="nav-list-link">自动重试</a></li></ul></li><li class="nav-list-item"><button class="nav-list-expander btn-reset" aria-label="配置参考 submenu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use xlink:href="#svg-arrow-right"></use></svg>
+      </button><a href="/PhonyC/reference/" class="nav-list-link">配置参考</a><ul class="nav-list"><li class="nav-list-item"><a href="/PhonyC/reference/environment/" class="nav-list-link">环境变量</a></li><li class="nav-list-item"><a href="/PhonyC/reference/api/" class="nav-list-link">API 路径与协议</a></li><li class="nav-list-item"><a href="/PhonyC/reference/operations/" class="nav-list-link">升级、备份与回滚</a></li><li class="nav-list-item"><a href="/PhonyC/reference/troubleshooting/" class="nav-list-link">故障排查</a></li></ul></li></ul>
+  
+</nav>
+
+
+
+
+  
+  
+    <footer class="site-footer">
+      This site uses <a href="https://github.com/just-the-docs/just-the-docs">Just the Docs</a>, a documentation theme for Jekyll.
+    </footer>
+  
+</div>
+
+  
+  <div class="main" id="top">
+    <div id="main-header" class="main-header">
+  
+    
+
+<div class="search" role="search">
+  <div class="search-input-wrap">
+    <input type="text" id="search-input" class="search-input" tabindex="0" placeholder="Search PhonyG 文档" autocomplete="off">
+    <label for="search-input" class="search-label">
+      <span class="sr-only">Search PhonyG 文档</span>
+      <svg viewBox="0 0 24 24" class="search-icon" aria-hidden="true"><use xlink:href="#svg-search"></use></svg>
+    </label>
+  </div>
+  <div id="search-results" class="search-results"></div>
+</div>
+
+  
+  
+  
+    <nav aria-label="Auxiliary" class="aux-nav">
+  <ul class="aux-nav-list">
+    
+      <li class="aux-nav-list-item">
+        <a href="https://github.com/Buukow/PhonyC" class="site-button"
+          
+          target="_blank" rel="noopener noreferrer"
+          
+        >
+          PhonyG on GitHub
+        </a>
+      </li>
+    
+  </ul>
+</nav>
+
+  
+</div>
+
+    <div class="main-content-wrap">
+      <nav aria-label="Breadcrumb" class="breadcrumb-nav">
+  <ol class="breadcrumb-nav-list">
+    <li class="breadcrumb-nav-list-item"><a href="/PhonyC/reference/">配置参考</a></li>
+    <li class="breadcrumb-nav-list-item"><span>API 路径与协议</span></li>
+  </ol>
+</nav>
+
+
+      <div id="main-content" class="main-content">
+        <main>
+          
+            <h1 id="api-路径与协议">
+  
+  
+    <a href="#api-路径与协议" class="anchor-heading" aria-labelledby="api-路径与协议"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> API 路径与协议
+  
+  
+</h1>
+    
+<h2 id="代理路径">
+  
+  
+    <a href="#代理路径" class="anchor-heading" aria-labelledby="代理路径"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> 代理路径
+  
+  
+</h2>
+    
+
+<div class="table-wrapper"><table>
+  <thead>
+    <tr>
+      <th>方法与路径</th>
+      <th>请求协议</th>
+      <th>渠道协议</th>
+      <th>说明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">POST /v1/chat/completions</code></td>
+      <td>OpenAI</td>
+      <td><code class="language-plaintext highlighter-rouge">openai</code></td>
+      <td>Chat Completions，支持流式响应透传。</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">POST /v1/completions</code></td>
+      <td>OpenAI</td>
+      <td><code class="language-plaintext highlighter-rouge">openai</code></td>
+      <td>Legacy Completions。</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">POST /v1/responses</code></td>
+      <td>OpenAI</td>
+      <td><code class="language-plaintext highlighter-rouge">openai</code></td>
+      <td>Responses API，适合 Codex 客户端。</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">POST /v1/messages</code></td>
+      <td>Anthropic</td>
+      <td><code class="language-plaintext highlighter-rouge">anthropic</code></td>
+      <td>Messages API，适合 Claude Code。</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">GET /v1/models</code></td>
+      <td>OpenAI 风格</td>
+      <td>聚合</td>
+      <td>返回所有启用渠道中已添加的客户端模型。</td>
+    </tr>
+  </tbody>
+</table></div>
+
+<p>请求必须提供有效 PhonyG 用户 Key。OpenAI 客户端通常使用 <code class="language-plaintext highlighter-rouge">Authorization: Bearer ...</code>；Anthropic 客户端可使用 <code class="language-plaintext highlighter-rouge">x-api-key</code>。PhonyG 验证用户 Key 后，会移除客户端鉴权并按渠道协议写入上游鉴权。</p>
+<h2 id="管理路径">
+  
+  
+    <a href="#管理路径" class="anchor-heading" aria-labelledby="管理路径"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> 管理路径
+  
+  
+</h2>
+    
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">GET /api/health</code>：无需 JWT，返回 <code class="language-plaintext highlighter-rouge">{"status":"ok"}</code>。</li>
+  <li><code class="language-plaintext highlighter-rouge">/api/setup/*</code>：首次管理员初始化相关接口。</li>
+  <li><code class="language-plaintext highlighter-rouge">/api/auth/login</code>：管理员登录。</li>
+  <li>其余 <code class="language-plaintext highlighter-rouge">/api/*</code>：要求 <code class="language-plaintext highlighter-rouge">Authorization: Bearer ADMIN_JWT</code>。</li>
+</ul>
+<h2 id="模型选路">
+  
+  
+    <a href="#模型选路" class="anchor-heading" aria-labelledby="模型选路"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> 模型选路
+  
+  
+</h2>
+    
+
+<ol>
+  <li>从请求体读取顶层 <code class="language-plaintext highlighter-rouge">model</code>。</li>
+  <li>按请求路径确定 OpenAI/Anthropic 协议。</li>
+  <li>查找协议匹配、渠道启用、未临时禁用、客户端模型匹配的候选渠道。</li>
+  <li>数字越大的 <code class="language-plaintext highlighter-rouge">priority</code> 越优先；同优先级随机选择。</li>
+  <li>映射开启模型改写时，只替换顶层 <code class="language-plaintext highlighter-rouge">model</code>，其余 Body 字节保持不变。</li>
+</ol>
+<h2 id="header-处理">
+  
+  
+    <a href="#header-处理" class="anchor-heading" aria-labelledby="header-处理"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Header 处理
+  
+  
+</h2>
+    
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">透传</code> 保留非鉴权、非 hop、非传输业务 Header；</li>
+  <li>渠道额外 Header 随后应用；</li>
+  <li><code class="language-plaintext highlighter-rouge">预设</code> / <code class="language-plaintext highlighter-rouge">自定义</code> 按规则移除和覆盖业务 Header；</li>
+  <li>上游鉴权、Host、Content-Length、Accept-Encoding 和 hop-by-hop Header 由网关控制。</li>
+</ul>
+<h2 id="错误结构">
+  
+  
+    <a href="#错误结构" class="anchor-heading" aria-labelledby="错误结构"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> 错误结构
+  
+  
+</h2>
+    
+
+<p>网关本地错误使用：</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"error"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"message"</span><span class="p">:</span><span class="w"> </span><span class="s2">"human readable message"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"gateway_error"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"code"</span><span class="p">:</span><span class="w"> </span><span class="s2">"model_not_found"</span><span class="w">
+  </span><span class="p">}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p>每个请求返回 <code class="language-plaintext highlighter-rouge">X-Request-Id</code>，可用于和请求日志对照。</p>
+
+          
+
+          
+            
+          
+        </main>
+        
+
+  <hr>
+  <footer>
+    
+      <p><a href="#top" id="back-to-top">返回顶部</a></p>
+    
+
+    <p class="text-small text-grey-dk-000 mb-0">PhonyG 文档 · GitHub Pages + Jekyll</p>
+
+
+    
+  </footer>
+
+
+      </div>
+    </div>
+    
+      
+
+<div class="search-overlay"></div>
+
+    
+  </div>
+
+  
+</body>
+</html>
+

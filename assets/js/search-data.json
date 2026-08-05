@@ -1,0 +1,681 @@
+{"0": {
+    "doc": "API 路径与协议",
+    "title": "API 路径与协议",
+    "content": " ",
+    "url": "/PhonyC/reference/api/",
+    
+    "relUrl": "/reference/api/"
+  },"1": {
+    "doc": "API 路径与协议",
+    "title": "代理路径",
+    "content": "| 方法与路径 | 请求协议 | 渠道协议 | 说明 | . | POST /v1/chat/completions | OpenAI | openai | Chat Completions，支持流式响应透传。 | . | POST /v1/completions | OpenAI | openai | Legacy Completions。 | . | POST /v1/responses | OpenAI | openai | Responses API，适合 Codex 客户端。 | . | POST /v1/messages | Anthropic | anthropic | Messages API，适合 Claude Code。 | . | GET /v1/models | OpenAI 风格 | 聚合 | 返回所有启用渠道中已添加的客户端模型。 | . 请求必须提供有效 PhonyG 用户 Key。OpenAI 客户端通常使用 Authorization: Bearer ...；Anthropic 客户端可使用 x-api-key。PhonyG 验证用户 Key 后，会移除客户端鉴权并按渠道协议写入上游鉴权。 . ",
+    "url": "/PhonyC/reference/api/#%E4%BB%A3%E7%90%86%E8%B7%AF%E5%BE%84",
+    
+    "relUrl": "/reference/api/#代理路径"
+  },"2": {
+    "doc": "API 路径与协议",
+    "title": "管理路径",
+    "content": ". | GET /api/health：无需 JWT，返回 {\"status\":\"ok\"}。 | /api/setup/*：首次管理员初始化相关接口。 | /api/auth/login：管理员登录。 | 其余 /api/*：要求 Authorization: Bearer ADMIN_JWT。 | . ",
+    "url": "/PhonyC/reference/api/#%E7%AE%A1%E7%90%86%E8%B7%AF%E5%BE%84",
+    
+    "relUrl": "/reference/api/#管理路径"
+  },"3": {
+    "doc": "API 路径与协议",
+    "title": "模型选路",
+    "content": ". | 从请求体读取顶层 model。 | 按请求路径确定 OpenAI/Anthropic 协议。 | 查找协议匹配、渠道启用、未临时禁用、客户端模型匹配的候选渠道。 | 数字越大的 priority 越优先；同优先级随机选择。 | 映射开启模型改写时，只替换顶层 model，其余 Body 字节保持不变。 | . ",
+    "url": "/PhonyC/reference/api/#%E6%A8%A1%E5%9E%8B%E9%80%89%E8%B7%AF",
+    
+    "relUrl": "/reference/api/#模型选路"
+  },"4": {
+    "doc": "API 路径与协议",
+    "title": "Header 处理",
+    "content": ". | 透传 保留非鉴权、非 hop、非传输业务 Header； | 渠道额外 Header 随后应用； | 预设 / 自定义 按规则移除和覆盖业务 Header； | 上游鉴权、Host、Content-Length、Accept-Encoding 和 hop-by-hop Header 由网关控制。 | . ",
+    "url": "/PhonyC/reference/api/#header-%E5%A4%84%E7%90%86",
+    
+    "relUrl": "/reference/api/#header-处理"
+  },"5": {
+    "doc": "API 路径与协议",
+    "title": "错误结构",
+    "content": "网关本地错误使用： . { \"error\": { \"message\": \"human readable message\", \"type\": \"gateway_error\", \"code\": \"model_not_found\" } } . 每个请求返回 X-Request-Id，可用于和请求日志对照。 . ",
+    "url": "/PhonyC/reference/api/#%E9%94%99%E8%AF%AF%E7%BB%93%E6%9E%84",
+    
+    "relUrl": "/reference/api/#错误结构"
+  },"6": {
+    "doc": "请求捕获 ⭐",
+    "title": "请求捕获 ⭐",
+    "content": "请求捕获用于记录 Codex、Claude Code 或其他客户端发给 PhonyG 的过滤后完整业务 Header，再一键保存为客户端预设。捕获 Key 的请求 只捕获不转发（capture-only），不会访问任何上游。 . ",
+    "url": "/PhonyC/features/capture/",
+    
+    "relUrl": "/features/capture/"
+  },"7": {
+    "doc": "请求捕获 ⭐",
+    "title": "四步完成捕获",
+    "content": ". | 开启捕获。进入侧栏“请求捕获”，点击开启。系统生成新的捕获 API Key，并进入“等待首次请求”布防状态。 | 让 AI 客户端调用 PhonyG。把客户端 Base URL 指向 PhonyG，Authorization 或 API Key 改为页面当前显示的捕获 Key，然后发起一次对话。 | 确认客户端返回。PhonyG 按 OpenAI/Anthropic 路径返回协议适配后的成功内容，客户端应显示 captured。 | 查看并保存。管理台显示捕获到的业务 Header；填写预设名后一键保存。同名自定义预设可覆盖，内置预设不会被覆盖。 | . 捕获开关、布防状态、系统固定 API Key 和保存预设入口。 ",
+    "url": "/PhonyC/features/capture/#%E5%9B%9B%E6%AD%A5%E5%AE%8C%E6%88%90%E6%8D%95%E8%8E%B7",
+    
+    "relUrl": "/features/capture/#四步完成捕获"
+  },"8": {
+    "doc": "请求捕获 ⭐",
+    "title": "请求流转",
+    "content": "AI 客户端 → PhonyG 固定捕获 Key → 过滤鉴权 / Cookie / Host / Content-Length / 压缩 / hop-by-hop Header → 保存下一次请求的业务 Header → 写入 capture-only 请求元数据 → 返回 captured（不访问上游） . ",
+    "url": "/PhonyC/features/capture/#%E8%AF%B7%E6%B1%82%E6%B5%81%E8%BD%AC",
+    
+    "relUrl": "/features/capture/#请求流转"
+  },"9": {
+    "doc": "请求捕获 ⭐",
+    "title": "成功返回",
+    "content": "AI 客户端收到 captured，证明请求已被 PhonyG 捕获。此图位由用户提供的客户端截图替换。 成功时，AI 客户端正常结束本次调用，管理台由“等待首次请求”切换为“已捕获/未布防”。这不表示上游模型生成了回复；它只表示 PhonyG 已完成捕获。 . ",
+    "url": "/PhonyC/features/capture/#%E6%88%90%E5%8A%9F%E8%BF%94%E5%9B%9E",
+    
+    "relUrl": "/features/capture/#成功返回"
+  },"10": {
+    "doc": "请求捕获 ⭐",
+    "title": "捕获结果",
+    "content": "捕获结果保留客户端标识、SDK 指纹和 Session-Id 等会话级业务 Header。 常见保留字段包括： . | Codex：Session-Id、Thread-Id、X-Client-Request-Id、X-Codex-Turn-Metadata、X-Codex-Window-Id； | Claude Code：X-Claude-Code-Session-Id、Anthropic/Stainless SDK 指纹 Header； | 普通业务 Header：User-Agent、Accept、客户端版本与功能标记。 | . ",
+    "url": "/PhonyC/features/capture/#%E6%8D%95%E8%8E%B7%E7%BB%93%E6%9E%9C",
+    
+    "relUrl": "/features/capture/#捕获结果"
+  },"11": {
+    "doc": "请求捕获 ⭐",
+    "title": "哪些 Header 会过滤",
+    "content": "捕获不会保存 Authorization、X-Api-Key、Cookie、Host、Content-Length、Accept-Encoding、Connection、Keep-Alive、Transfer-Encoding、TE、Trailer、Upgrade、代理鉴权和其他 hop-by-hop/传输字段。 . 这里的“完整”指过滤范围内的完整业务 Header 名和值。当前捕获存储是 map[string]string：同名 Header 出现多个值时只保留第一个值（首值），不会保存重复 Header 的全部多值实例。 . ",
+    "url": "/PhonyC/features/capture/#%E5%93%AA%E4%BA%9B-header-%E4%BC%9A%E8%BF%87%E6%BB%A4",
+    
+    "relUrl": "/features/capture/#哪些-header-会过滤"
+  },"12": {
+    "doc": "请求捕获 ⭐",
+    "title": "布防与 403",
+    "content": ". | 开启捕获会生成新的捕获 Key，立即布防并清除旧捕获； | 布防状态只记录下一次使用固定 Key 的请求； | 捕获完成后自动取消布防； | 要捕获下一次请求，点击“重新布防”；每次重新布防都会生成新的捕获 Key，页面会立即刷新显示，旧 Key 随即失效； | 捕获关闭或未布防时继续使用该固定 Key，会返回 403； | 普通用户 Key 不受捕获页面布防状态影响。 | . ",
+    "url": "/PhonyC/features/capture/#%E5%B8%83%E9%98%B2%E4%B8%8E-403",
+    
+    "relUrl": "/features/capture/#布防与-403"
+  },"13": {
+    "doc": "请求捕获 ⭐",
+    "title": "保存为客户端预设",
+    "content": "每个捕获 Header 转换为 schema v1 顶层规则，默认使用 强制覆盖。系统不会猜测哪些值应该动态变化，也不会自动创建 Session 生成器。建议另存后进入 客户端预设： . | 将静态客户端指纹保留为强制覆盖； | 把 Session/Thread/Turn 等值替换为 UUID 或时间生成器； | 对确实应该尊重客户端值的字段改为缺失补全； | 使用预览确认最终 Header。 | . ",
+    "url": "/PhonyC/features/capture/#%E4%BF%9D%E5%AD%98%E4%B8%BA%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%A2%84%E8%AE%BE",
+    
+    "relUrl": "/features/capture/#保存为客户端预设"
+  },"14": {
+    "doc": "请求捕获 ⭐",
+    "title": "请求日志语义",
+    "content": "捕获请求也会出现在 PhonyG 请求日志中，但它不是普通代理调用： . | 字段 | 值 | . | 状态 | 200 | . | 客户端模型 | 从请求体读取；没有时使用捕获占位模型 | . | 用户 Key | 空（固定捕获 Key 不创建普通用户 Key 统计） | . | 渠道 | 空 | . | Token | 输入、输出、合计均为 0（零 Token） | . | 错误摘要 | 空字符串 | . | 伪装模式 | 透传 元数据 | . 日志写入是 best-effort；即使本地日志写入异常，也不会把捕获请求转发到上游。 . ",
+    "url": "/PhonyC/features/capture/#%E8%AF%B7%E6%B1%82%E6%97%A5%E5%BF%97%E8%AF%AD%E4%B9%89",
+    
+    "relUrl": "/features/capture/#请求日志语义"
+  },"15": {
+    "doc": "渠道与模型映射",
+    "title": "渠道与模型映射",
+    "content": "渠道描述一个上游服务。模型映射决定客户端模型如何路由到该渠道以及是否改写为另一上游模型。 . 渠道协议、优先级、状态、最近测活与 Base URL。 ",
+    "url": "/PhonyC/features/channels/",
+    
+    "relUrl": "/features/channels/"
+  },"16": {
+    "doc": "渠道与模型映射",
+    "title": "渠道字段",
+    "content": "| 字段 | 说明 | . | 名称 | 管理台和日志中识别渠道的名称。 | . | 协议 | openai 或 anthropic；必须与请求路径协议匹配。 | . | Base URL | 不带最终 API 路径，例如 https://api.example.com。 | . | 上游 API Key | PhonyG 写入上游鉴权，不会把用户 Key 直接转发。 | . | 优先级 | 0 是最低默认值，数字越大越优先；同优先级随机。禁止负数。 | . | 超时 | 单次上游请求超时，毫秒。 | . | 测活所用预设 | 默认“无”，可选择已有客户端预设，仅在测活请求中套用其 Header。 | . | 额外 Header JSON | 在协议鉴权后加入的渠道级业务 Header。 | . ",
+    "url": "/PhonyC/features/channels/#%E6%B8%A0%E9%81%93%E5%AD%97%E6%AE%B5",
+    
+    "relUrl": "/features/channels/#渠道字段"
+  },"17": {
+    "doc": "渠道与模型映射",
+    "title": "模型映射",
+    "content": "进入渠道详情后可从上游 /v1/models 拉取模型，也可手动添加： . | 客户端模型：用户请求体和网关 /v1/models 暴露的名称； | 上游模型：真正发给该渠道的模型名； | 改写模型：开启时只替换请求体顶层 model。 | . 只有添加并启用的映射会参与代理和测活。 . ",
+    "url": "/PhonyC/features/channels/#%E6%A8%A1%E5%9E%8B%E6%98%A0%E5%B0%84",
+    
+    "relUrl": "/features/channels/#模型映射"
+  },"18": {
+    "doc": "渠道与模型映射",
+    "title": "渠道状态",
+    "content": ". | 启用：可以被选路； | 停用：管理员手动关闭； | 测活临时禁用：命中配置状态码后自动隔离，不参与正式选路。 | . 临时禁用渠道会继续被自动测活用于恢复。下一次权威测活结果为 2xx/3xx 成功时恢复；管理员也可直接点击启用强制清除临时禁用。 . ",
+    "url": "/PhonyC/features/channels/#%E6%B8%A0%E9%81%93%E7%8A%B6%E6%80%81",
+    
+    "relUrl": "/features/channels/#渠道状态"
+  },"19": {
+    "doc": "渠道与模型映射",
+    "title": "手动测活",
+    "content": "渠道列表的“测活”会对该渠道第一个启用的模型映射发请求。选择客户端预设时只改变请求 Header，不改变协议对应的测活路径和请求体。普通停用或启用渠道只记录结果；已经临时禁用的渠道在成功时恢复。 . 点击后当前渠道的按钮会显示旋转加载状态并暂时禁用，直到请求和状态刷新结束；其他渠道仍可继续编辑、启用或同时测活。 . ",
+    "url": "/PhonyC/features/channels/#%E6%89%8B%E5%8A%A8%E6%B5%8B%E6%B4%BB",
+    
+    "relUrl": "/features/channels/#手动测活"
+  },"20": {
+    "doc": "概览与统计",
+    "title": "概览与统计",
+    "content": "概览页用于快速判断网关流量、错误和 Token 变化，不替代详细请求日志。 . 请求量、成功率、Token 趋势、热门模型和近期请求。 ",
+    "url": "/PhonyC/features/dashboard/",
+    
+    "relUrl": "/features/dashboard/"
+  },"21": {
+    "doc": "概览与统计",
+    "title": "指标区域",
+    "content": ". | 请求总数与成功/错误状态； | Token 总量与输入、输出拆分； | 按时间绘制的请求量、Token 趋势； | 热门客户端模型； | 近期请求与异常摘要。 | . 捕获 Key 产生的 capture-only 请求会进入请求元数据，但 Token 为 0、没有普通用户 Key 和渠道，因此不会制造虚假的上游 Token 用量。 . ",
+    "url": "/PhonyC/features/dashboard/#%E6%8C%87%E6%A0%87%E5%8C%BA%E5%9F%9F",
+    
+    "relUrl": "/features/dashboard/#指标区域"
+  },"22": {
+    "doc": "概览与统计",
+    "title": "如何使用",
+    "content": ". | 先看错误率是否突然上升； | 对照 Token 趋势判断是否是流量增长； | 查看热门模型，确认客户端模型命名符合预期； | 进入 请求日志 按状态、Key、渠道或路径筛选。 | . ",
+    "url": "/PhonyC/features/dashboard/#%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8",
+    
+    "relUrl": "/features/dashboard/#如何使用"
+  },"23": {
+    "doc": "Docker 部署",
+    "title": "Docker 部署",
+    "content": "Docker 镜像包含已经构建好的 React 管理台和静态 Go 二进制，以非 root 用户运行，默认监听容器内 8080，数据目录为 /data。 . ",
+    "url": "/PhonyC/docker/",
+    
+    "relUrl": "/docker/"
+  },"24": {
+    "doc": "Docker 部署",
+    "title": "使用预构建镜像",
+    "content": "docker pull ghcr.io/buukow/phonyg:1.9 docker run -d \\ --name phonyg \\ --restart unless-stopped \\ -p 8080:8080 \\ -v phonyg-data:/data \\ ghcr.io/buukow/phonyg:1.9 . 访问 http://HOST:8080/ 初始化管理员。 . 生产环境建议固定 1.9 或具体版本标签。latest 会跟随默认分支的新镜像，适合持续跟进项目但不利于精确回滚。 . ",
+    "url": "/PhonyC/docker/#%E4%BD%BF%E7%94%A8%E9%A2%84%E6%9E%84%E5%BB%BA%E9%95%9C%E5%83%8F",
+    
+    "relUrl": "/docker/#使用预构建镜像"
+  },"25": {
+    "doc": "Docker 部署",
+    "title": "Docker Compose",
+    "content": "下面的完整示例显式配置运行参数和健康检查： . services: phonyg: image: ghcr.io/buukow/phonyg:1.9 container_name: phonyg restart: unless-stopped ports: - \"8080:8080\" environment: PHONYG_ADDR: \"0.0.0.0:8080\" PHONYG_DATA_DIR: \"/data\" PHONYG_JWT_TTL_HOURS: \"24\" PHONYG_MAX_BODY_BYTES: \"67108864\" # PHONYG_JWT_SECRET: \"replace-with-a-long-random-secret\" volumes: - phonyg-data:/data healthcheck: test: [\"CMD\", \"wget\", \"-qO-\", \"http://127.0.0.1:8080/api/health\"] interval: 30s timeout: 5s retries: 3 volumes: phonyg-data: . 当前运行镜像基于 debian:bookworm-slim，只包含 CA 证书、时区数据和 PhonyG；若镜像中没有 wget，可从宿主机或反向代理执行健康检查，或者在自定义镜像中增加探针工具。 . ",
+    "url": "/PhonyC/docker/#docker-compose",
+    
+    "relUrl": "/docker/#docker-compose"
+  },"26": {
+    "doc": "Docker 部署",
+    "title": "最简 Docker Compose",
+    "content": "只保留启动服务所需的镜像、重启策略、端口和持久化数据卷： . services: phonyg: image: ghcr.io/buukow/phonyg:1.9 restart: unless-stopped ports: - \"8080:8080\" volumes: - phonyg-data:/data volumes: phonyg-data: . 保存为 compose.yml 后运行： . docker compose up -d . ",
+    "url": "/PhonyC/docker/#%E6%9C%80%E7%AE%80-docker-compose",
+    
+    "relUrl": "/docker/#最简-docker-compose"
+  },"27": {
+    "doc": "Docker 部署",
+    "title": "环境变量",
+    "content": "| 变量 | 默认值 | Docker 推荐值 | 说明 | . | PHONYG_ADDR | :8080 | 0.0.0.0:8080 | HTTP 监听地址。容器内必须监听非 loopback 才能通过端口映射访问。 | . | PHONYG_DATA_DIR | ./data | /data | SQLite 数据库和自动生成的 JWT secret 所在目录。 | . | PHONYG_JWT_SECRET | 空，自动生成 | 长随机字符串或留空持久化 | 非空时直接作为 JWT HMAC 密钥；留空时写入数据目录的 jwt_secret。 | . | PHONYG_MAX_BODY_BYTES | 67108864（64 MiB） | 按客户端请求大小调整 | 接收代理请求体的字节上限；非法值或非正数回退到 64 MiB。 | . | PHONYG_JWT_TTL_HOURS | 24 | 24 | 管理员 JWT 有效小时数；非正数回退到 24。 | . 更完整的类型与行为参见 环境变量参考。 . ",
+    "url": "/PhonyC/docker/#%E7%8E%AF%E5%A2%83%E5%8F%98%E9%87%8F",
+    
+    "relUrl": "/docker/#环境变量"
+  },"28": {
+    "doc": "Docker 部署",
+    "title": "自行构建镜像",
+    "content": "docker build -t phonyg:local . docker run -d --name phonyg-local \\ -p 8080:8080 \\ -v phonyg-local-data:/data \\ phonyg:local . Dockerfile 使用三阶段构建：Node.js 构建前端、Go 构建静态 linux/amd64 二进制、Debian slim 作为运行时。 . ",
+    "url": "/PhonyC/docker/#%E8%87%AA%E8%A1%8C%E6%9E%84%E5%BB%BA%E9%95%9C%E5%83%8F",
+    
+    "relUrl": "/docker/#自行构建镜像"
+  },"29": {
+    "doc": "环境变量",
+    "title": "环境变量",
+    "content": "PhonyG 当前读取五个运行时环境变量。未设置、格式错误或不符合有效范围时会使用默认值。 . | 变量 | 类型 | 默认值 | 读取行为 | . | PHONYG_ADDR | 字符串 | :8080 | 去除首尾空白；空值使用默认监听地址。 | . | PHONYG_DATA_DIR | 路径 | ./data | 保存 phonyg.db 与 jwt_secret。Docker 镜像默认覆盖为 /data。 | . | PHONYG_JWT_SECRET | 字符串 | 空 | 非空时直接使用；为空时读取或生成 PHONYG_DATA_DIR/jwt_secret。 | . | PHONYG_MAX_BODY_BYTES | 十进制整数 | 67108864 | 请求体上限，单位字节；解析失败或 &lt;= 0 回退到 64 MiB。 | . | PHONYG_JWT_TTL_HOURS | 十进制整数 | 24 | 管理 JWT 有效小时数；解析失败或 &lt;= 0 回退到 24。 | . ",
+    "url": "/PhonyC/reference/environment/",
+    
+    "relUrl": "/reference/environment/"
+  },"30": {
+    "doc": "环境变量",
+    "title": "示例",
+    "content": "export PHONYG_ADDR=0.0.0.0:8080 export PHONYG_DATA_DIR=/srv/phonyg export PHONYG_JWT_SECRET='replace-with-long-random-value' export PHONYG_MAX_BODY_BYTES=134217728 export PHONYG_JWT_TTL_HOURS=12 ./bin/phonyg . 如果设置了 PHONYG_JWT_SECRET，多次重启或多副本必须保持相同值，否则现有管理员登录令牌会立即失效。不要把真实值提交进仓库。 . ",
+    "url": "/PhonyC/reference/environment/#%E7%A4%BA%E4%BE%8B",
+    
+    "relUrl": "/reference/environment/#示例"
+  },"31": {
+    "doc": "环境变量",
+    "title": "数据文件",
+    "content": "| 文件 | 用途 | . | phonyg.db | 管理员、渠道、模型、Key、预设、设置、请求元数据和统计。 | . | phonyg.db-wal | SQLite WAL；运行中可能包含尚未 checkpoint 回主库的数据。 | . | phonyg.db-shm | WAL 共享内存索引。 | . | jwt_secret | 仅在没有 PHONYG_JWT_SECRET 时创建。 | . ",
+    "url": "/PhonyC/reference/environment/#%E6%95%B0%E6%8D%AE%E6%96%87%E4%BB%B6",
+    
+    "relUrl": "/reference/environment/#数据文件"
+  },"32": {
+    "doc": "快速开始",
+    "title": "快速开始",
+    "content": "根据你的使用场景，从下面三个页面开始： . ",
+    "url": "/PhonyC/getting-started/",
+    
+    "relUrl": "/getting-started/"
+  },"33": {
+    "doc": "快速开始",
+    "title": "本地构建",
+    "content": "适合开发、调试、修改管理台，或从源码编译自己的 PhonyG 二进制。 . ",
+    "url": "/PhonyC/getting-started/#%E6%9C%AC%E5%9C%B0%E6%9E%84%E5%BB%BA",
+    
+    "relUrl": "/getting-started/#本地构建"
+  },"34": {
+    "doc": "快速开始",
+    "title": "Docker 部署",
+    "content": "使用预构建镜像、Docker Compose 或本地镜像部署 PhonyG，并配置容器环境变量和持久化数据卷。 . ",
+    "url": "/PhonyC/getting-started/#docker-%E9%83%A8%E7%BD%B2",
+    
+    "relUrl": "/getting-started/#docker-部署"
+  },"35": {
+    "doc": "快速开始",
+    "title": "如何使用",
+    "content": "服务启动后，从初始化管理员开始，依次创建上游渠道、用户 Key，并发出第一条 OpenAI 或 Anthropic 请求。 . ",
+    "url": "/PhonyC/getting-started/#%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8",
+    
+    "relUrl": "/getting-started/#如何使用"
+  },"36": {
+    "doc": "自动测活与增强模式 ⭐",
+    "title": "自动测活与增强模式 ⭐",
+    "content": "自动测活定期调用每个渠道的第一个启用模型映射，根据最终状态临时禁用失败渠道，并在后续成功时恢复。 . 自动测活增强、随机词库、间隔、偏移、禁用状态码和随机预览。 ",
+    "url": "/PhonyC/features/healthcheck/",
+    
+    "relUrl": "/features/healthcheck/"
+  },"37": {
+    "doc": "自动测活与增强模式 ⭐",
+    "title": "基础模式",
+    "content": ". | 间隔（分钟）：基础等待时间； | 随机偏移（分钟）：每轮额外等待 0..偏移 分钟，避免固定周期； | 测活提问词：默认 什么是codex？； | 临时禁用状态码：默认 401,403,404,503，同时作用于自动测活与正式代理流量。 | . 自动轮次只处理管理员手动启用的渠道，包括已经临时禁用、等待恢复的渠道。普通停用渠道不会被后台重新启用。 . 每个渠道可以选择一个“测活所用预设”。默认“无”时发送普通测活请求；选择后使用与正式转发一致的预设 Header 解析规则，但 OpenAI 仍请求 /v1/chat/completions，Anthropic 仍请求 /v1/messages，请求体不因预设变化。 . 渠道列表的手动“测活”也遵循这一设置。点击后按钮会显示旋转加载状态，直到测活和渠道状态刷新结束；其他渠道不受影响，可以并发测活。 . ",
+    "url": "/PhonyC/features/healthcheck/#%E5%9F%BA%E7%A1%80%E6%A8%A1%E5%BC%8F",
+    
+    "relUrl": "/features/healthcheck/#基础模式"
+  },"38": {
+    "doc": "自动测活与增强模式 ⭐",
+    "title": "状态变化",
+    "content": "| 场景 | 结果 | . | 启用渠道最终返回配置禁用码 | 设置为测活临时禁用。 | . | 临时禁用渠道最终成功 | 自动恢复为启用。 | . | 普通停用渠道手动测活 | 只记录结果，不改变停用状态。 | . | 临时禁用渠道手动测活成功 | 恢复。 | . | 管理员点击临时禁用渠道“启用” | 强制清除临时禁用。 | . ",
+    "url": "/PhonyC/features/healthcheck/#%E7%8A%B6%E6%80%81%E5%8F%98%E5%8C%96",
+    
+    "relUrl": "/features/healthcheck/#状态变化"
+  },"39": {
+    "doc": "自动测活与增强模式 ⭐",
+    "title": "自动测活增强",
+    "content": "启用“自动测活增强”后，不再使用固定提问词。后端从 JSON 词库随机选择前缀、修饰词、目标、短规则、语气词和标点，生成更分散的请求内容。设置页的“随机预览”调用同一后端生成器，避免前端展示与真实算法漂移。 . 词库要求： . | prefix、modal_words、short_rules、targets 是非空字符串数组； | modifier 必须存在，可以包含空字符串； | 未知字段、错误类型、无效 JSON 会拒绝保存； | 运行期解析异常回退到内置默认词库。 | . ",
+    "url": "/PhonyC/features/healthcheck/#%E8%87%AA%E5%8A%A8%E6%B5%8B%E6%B4%BB%E5%A2%9E%E5%BC%BA",
+    
+    "relUrl": "/features/healthcheck/#自动测活增强"
+  },"40": {
+    "doc": "自动测活与增强模式 ⭐",
+    "title": "stream-first 与 fallback",
+    "content": "增强模式使用 stream-first： . | 首先发送 stream: true； | 状态必须为 200–399，并且流中至少有一项真实非空内容； | 只有 [DONE]、心跳、注释、空 data 或空 delta 不算成功； | 网络错误、超时、4xx/5xx、空流或不可识别内容会发送一次 stream: false fallback； | fallback 除 stream 外保持协议、路径、模型、提示词、参数、鉴权和 Header 相同； | fallback 的结果是禁用/恢复和日志状态的权威结果。 | . 如果流式失败但 fallback 成功，渠道仍然健康。两次都失败时，只使用 fallback 的最终状态判断是否临时禁用；延迟记录两次尝试的总时间。 . ",
+    "url": "/PhonyC/features/healthcheck/#stream-first-%E4%B8%8E-fallback",
+    
+    "relUrl": "/features/healthcheck/#stream-first-与-fallback"
+  },"41": {
+    "doc": "自动测活与增强模式 ⭐",
+    "title": "立即测活一轮",
+    "content": "设置页按钮会在后台触发一轮，与定时轮次使用相同的增强提示生成器和 stream-first 执行器。页面稍后刷新上次完成时间、成功、失败、临时禁用和恢复数量。 . ",
+    "url": "/PhonyC/features/healthcheck/#%E7%AB%8B%E5%8D%B3%E6%B5%8B%E6%B4%BB%E4%B8%80%E8%BD%AE",
+    
+    "relUrl": "/features/healthcheck/#立即测活一轮"
+  },"42": {
+    "doc": "如何使用",
+    "title": "如何使用",
+    "content": "服务启动后，按下面四步完成管理员初始化、上游渠道和用户 Key 配置，然后发出第一条请求。 . ",
+    "url": "/PhonyC/how-to-use/",
+    
+    "relUrl": "/how-to-use/"
+  },"43": {
+    "doc": "如何使用",
+    "title": "1. 初始化管理员",
+    "content": "浏览器打开 http://127.0.0.1:8080/。首次运行会进入初始化页： . | 设置管理员用户名。 | 设置至少 6 位密码。 | 登录管理台。 | . 管理员会话使用 JWT。默认有效期 24 小时，可通过 PHONYG_JWT_TTL_HOURS 调整。 . ",
+    "url": "/PhonyC/how-to-use/#1-%E5%88%9D%E5%A7%8B%E5%8C%96%E7%AE%A1%E7%90%86%E5%91%98",
+    
+    "relUrl": "/how-to-use/#1-初始化管理员"
+  },"44": {
+    "doc": "如何使用",
+    "title": "2. 创建上游渠道",
+    "content": "进入 渠道 → 新建渠道： . | 选择 openai 或 anthropic 协议； | 填写上游 Base URL 和 API Key； | 设置优先级和超时； | 按需选择“测活所用预设”；默认“无（正常请求）”，只影响测活请求使用的 Header； | 从上游 /v1/models 拉取模型，或手动添加客户端模型与上游模型映射； | 保存后按需手动测活。 | . 只有已经添加并启用的模型映射会出现在网关 /v1/models，也只有这些模型会参与选路与自动测活。 . ",
+    "url": "/PhonyC/how-to-use/#2-%E5%88%9B%E5%BB%BA%E4%B8%8A%E6%B8%B8%E6%B8%A0%E9%81%93",
+    
+    "relUrl": "/how-to-use/#2-创建上游渠道"
+  },"45": {
+    "doc": "如何使用",
+    "title": "3. 创建用户 Key",
+    "content": "进入 用户 Key → 新建 Key： . | Key 留空时由系统自动生成； | 初次接入可选择“透传”； | 模拟 Codex/Claude Code 时选择“预设”并绑定预设； | 简单覆盖少量 Header 时选择“自定义”。 | . ",
+    "url": "/PhonyC/how-to-use/#3-%E5%88%9B%E5%BB%BA%E7%94%A8%E6%88%B7-key",
+    
+    "relUrl": "/how-to-use/#3-创建用户-key"
+  },"46": {
+    "doc": "如何使用",
+    "title": "4. 发出请求",
+    "content": "OpenAI Chat Completions（/v1/chat/completions）： . curl http://127.0.0.1:8080/v1/chat/completions \\ -H 'Authorization: Bearer sk-YOUR-PHONYG-KEY' \\ -H 'Content-Type: application/json' \\ -d '{ \"model\": \"YOUR-CLIENT-MODEL\", \"messages\": [{\"role\":\"user\",\"content\":\"hi\"}], \"stream\": false }' . OpenAI Responses（/v1/responses）： . curl http://127.0.0.1:8080/v1/responses \\ -H 'Authorization: Bearer sk-YOUR-PHONYG-KEY' \\ -H 'Content-Type: application/json' \\ -d '{\"model\":\"YOUR-CLIENT-MODEL\",\"input\":\"hi\"}' . Anthropic Messages： . curl http://127.0.0.1:8080/v1/messages \\ -H 'x-api-key: sk-YOUR-PHONYG-KEY' \\ -H 'anthropic-version: 2023-06-01' \\ -H 'content-type: application/json' \\ -d '{ \"model\":\"YOUR-CLIENT-MODEL\", \"max_tokens\":128, \"messages\":[{\"role\":\"user\",\"content\":\"hi\"}] }' . 客户端请求体里的模型名必须与渠道模型表中的“客户端模型”一致。是否改写为另一上游模型，由该映射的 rewrite_model 配置决定。 . ",
+    "url": "/PhonyC/how-to-use/#4-%E5%8F%91%E5%87%BA%E8%AF%B7%E6%B1%82",
+    
+    "relUrl": "/how-to-use/#4-发出请求"
+  },"47": {
+    "doc": "如何使用",
+    "title": "下一步",
+    "content": ". | 需要模拟客户端：阅读 客户端预设 ⭐。 | 想捕获真实请求头：阅读 请求捕获 ⭐。 | . ",
+    "url": "/PhonyC/how-to-use/#%E4%B8%8B%E4%B8%80%E6%AD%A5",
+    
+    "relUrl": "/how-to-use/#下一步"
+  },"48": {
+    "doc": "配置参考",
+    "title": "配置参考",
+    "content": "集中查询环境变量、代理路径、协议行为、备份升级和常见故障。 . ",
+    "url": "/PhonyC/reference/",
+    
+    "relUrl": "/reference/"
+  },"49": {
+    "doc": "功能指南",
+    "title": "功能指南",
+    "content": "从管理台概览到渠道、用户 Key、客户端预设、请求捕获、日志、自动测活和重试的完整使用说明。 . ",
+    "url": "/PhonyC/features/",
+    
+    "relUrl": "/features/"
+  },"50": {
+    "doc": "首页",
+    "title": "PhonyG",
+    "content": "轻量 AI API 中转网关：在不破坏请求体的前提下完成协议路由、模型映射、客户端 Header 伪装、自动测活、失败重试与请求观测。 . 快速开始 Docker 部署 ",
+    "url": "/PhonyC/",
+    
+    "relUrl": "/"
+  },"51": {
+    "doc": "首页",
+    "title": "为什么使用 PhonyG",
+    "content": "PhonyG 以 Go 提供单进程网关，React 管理台嵌入二进制，SQLite 保存配置和请求元数据。它适合需要统一接入多个 OpenAI/Anthropic 兼容上游，并希望模拟 Codex、Claude Code 等真实客户端请求特征的单机部署。 . 协议与渠道路由OpenAI Chat / Responses、Anthropic 路径、优先级、模型映射和临时禁用。 客户端指纹预设结构化 Header、动态会话生成器、强制覆盖与缺失补全。 自动测活增强随机提示词、stream-first、非流式回退与自动恢复。 请求捕获捕获真实客户端业务 Header，一键转换为可复用预设。 ",
+    "url": "/PhonyC/#%E4%B8%BA%E4%BB%80%E4%B9%88%E4%BD%BF%E7%94%A8-phonyg",
+    
+    "relUrl": "/#为什么使用-phonyg"
+  },"52": {
+    "doc": "首页",
+    "title": "核心能力",
+    "content": ". | Header 重组 + Body 玻璃穿透：只在需要时对顶层 model 做字节级改写，其余请求体保持原样。 | 两类上游协议：OpenAI Chat / Responses 路径和 Anthropic /v1/messages 分别使用对应鉴权方式。 | 三种 Key 伪装模式：透传、预设、自定义。 | 运行观测：概览、模型热度、状态码、延迟、输入/输出/总 Token、错误摘要和筛选日志。 | 单机友好：默认 SQLite，无外部数据库依赖；管理台由 JWT 保护。 | . ",
+    "url": "/PhonyC/#%E6%A0%B8%E5%BF%83%E8%83%BD%E5%8A%9B",
+    
+    "relUrl": "/#核心能力"
+  },"53": {
+    "doc": "首页",
+    "title": "选择安装方式",
+    "content": "| 场景 | 推荐页面 | . | 第一次体验 | 快速开始 | . | 修改源码、调试前后端 | 本地构建 | . | 稳定运行、便于升级 | Docker 部署 | . 公开仓库名仍为 PhonyC，产品和镜像名称已经统一为 PhonyG。 . ",
+    "url": "/PhonyC/#%E9%80%89%E6%8B%A9%E5%AE%89%E8%A3%85%E6%96%B9%E5%BC%8F",
+    
+    "relUrl": "/#选择安装方式"
+  },"54": {
+    "doc": "首页",
+    "title": "首页",
+    "content": " ",
+    "url": "/PhonyC/",
+    
+    "relUrl": "/"
+  },"55": {
+    "doc": "用户 Key 与伪装模式",
+    "title": "用户 Key 与伪装模式",
+    "content": "用户 Key 是客户端访问 PhonyG 代理路径的凭证，同时绑定 Header 伪装策略。 . 创建、复制、启停用户 Key，并选择透传、预设或自定义。 ",
+    "url": "/PhonyC/features/keys/",
+    
+    "relUrl": "/features/keys/"
+  },"56": {
+    "doc": "用户 Key 与伪装模式",
+    "title": "三种模式",
+    "content": " ",
+    "url": "/PhonyC/features/keys/#%E4%B8%89%E7%A7%8D%E6%A8%A1%E5%BC%8F",
+    
+    "relUrl": "/features/keys/#三种模式"
+  },"57": {
+    "doc": "用户 Key 与伪装模式",
+    "title": "透传",
+    "content": "保留客户端业务 Header，过滤客户端鉴权、Host、Content-Length、Accept-Encoding 和 hop-by-hop Header，再写入渠道鉴权和额外 Header。适合先验证协议和路由。 . ",
+    "url": "/PhonyC/features/keys/#%E9%80%8F%E4%BC%A0",
+    
+    "relUrl": "/features/keys/#透传"
+  },"58": {
+    "doc": "用户 Key 与伪装模式",
+    "title": "预设",
+    "content": "绑定结构化客户端预设。适合模拟 Codex、Claude Code 或捕获到的真实客户端指纹。规则可以删除、补全或强制覆盖业务 Header，并生成动态会话字段。 . ",
+    "url": "/PhonyC/features/keys/#%E9%A2%84%E8%AE%BE",
+    
+    "relUrl": "/features/keys/#预设"
+  },"59": {
+    "doc": "用户 Key 与伪装模式",
+    "title": "自定义",
+    "content": "用简单 JSON Header Map 覆盖业务 Header，适合不需要生成器和嵌套字段规则的少量自定义。 . ",
+    "url": "/PhonyC/features/keys/#%E8%87%AA%E5%AE%9A%E4%B9%89",
+    
+    "relUrl": "/features/keys/#自定义"
+  },"60": {
+    "doc": "用户 Key 与伪装模式",
+    "title": "生命周期",
+    "content": ". | 新建时 Key 留空会自动生成 sk-...； | 编辑时 Key 留空保持原值； | 停用后所有代理请求被拒绝； | 删除 Key 不会删除历史请求元数据中的统计记录； | 备注适合记录使用者、环境或用途。 | . 用户 Key 与“请求捕获”页面的系统固定捕获 Key 不同。捕获 Key 只用于捕获下一次请求，不能作为普通上游代理凭证。 . ",
+    "url": "/PhonyC/features/keys/#%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F",
+    
+    "relUrl": "/features/keys/#生命周期"
+  },"61": {
+    "doc": "本地构建",
+    "title": "本地构建",
+    "content": "本地构建适合开发、调试、修改管理台或编译自己的 PhonyG 二进制。 . ",
+    "url": "/PhonyC/local-build/",
+    
+    "relUrl": "/local-build/"
+  },"62": {
+    "doc": "本地构建",
+    "title": "构建要求",
+    "content": ". | Go 1.26 或与 go.mod 兼容的版本； | Node.js 20 与 npm； | Linux、macOS，或可以运行 Go/Node 的开发环境。 | . ",
+    "url": "/PhonyC/local-build/#%E6%9E%84%E5%BB%BA%E8%A6%81%E6%B1%82",
+    
+    "relUrl": "/local-build/#构建要求"
+  },"63": {
+    "doc": "本地构建",
+    "title": "一条命令构建",
+    "content": "make build . 这个命令会： . | 在 web/ 安装前端依赖； | 使用 Vite 构建 React 管理台； | 将产物写入 internal/webembed/dist/； | 通过 Go embed 打包进 bin/phonyg。 | . 启动： . PHONYG_ADDR=0.0.0.0:23342 \\ PHONYG_DATA_DIR=./data \\ ./bin/phonyg . ",
+    "url": "/PhonyC/local-build/#%E4%B8%80%E6%9D%A1%E5%91%BD%E4%BB%A4%E6%9E%84%E5%BB%BA",
+    
+    "relUrl": "/local-build/#一条命令构建"
+  },"64": {
+    "doc": "本地构建",
+    "title": "分步开发",
+    "content": "后端： . go run ./cmd/phonyg . 前端： . cd web npm install npm run dev . 前端开发服务器只用于 UI 开发；正式二进制使用的是构建后嵌入的静态资源。 . ",
+    "url": "/PhonyC/local-build/#%E5%88%86%E6%AD%A5%E5%BC%80%E5%8F%91",
+    
+    "relUrl": "/local-build/#分步开发"
+  },"65": {
+    "doc": "本地构建",
+    "title": "测试",
+    "content": "go test ./... -count=1 cd web npm test -- --run npm run build . ",
+    "url": "/PhonyC/local-build/#%E6%B5%8B%E8%AF%95",
+    
+    "relUrl": "/local-build/#测试"
+  },"66": {
+    "doc": "本地构建",
+    "title": "数据目录",
+    "content": "PHONYG_DATA_DIR 中包含： . | phonyg.db：SQLite 数据库； | phonyg.db-wal / phonyg.db-shm：SQLite WAL 文件（运行中可能存在）； | jwt_secret：未设置 PHONYG_JWT_SECRET 时自动生成的管理 JWT 密钥。 | . 升级或迁移前，应停止写入或使用 SQLite 在线备份，不能只复制正在变化的单个 phonyg.db 文件而忽略 WAL。 . 下一页：Docker 部署。 . ",
+    "url": "/PhonyC/local-build/#%E6%95%B0%E6%8D%AE%E7%9B%AE%E5%BD%95",
+    
+    "relUrl": "/local-build/#数据目录"
+  },"67": {
+    "doc": "请求日志",
+    "title": "请求日志",
+    "content": "请求日志保存元数据而不是完整请求体，适合定位路由、状态、耗时和 Token 问题。 . 按关键词、路径、Key、渠道和状态码筛选请求。 ",
+    "url": "/PhonyC/features/logs/",
+    
+    "relUrl": "/features/logs/"
+  },"68": {
+    "doc": "请求日志",
+    "title": "可筛选字段",
+    "content": ". | 关键词； | 请求路径； | 用户 Key； | 渠道； | HTTP 状态码。 | . ",
+    "url": "/PhonyC/features/logs/#%E5%8F%AF%E7%AD%9B%E9%80%89%E5%AD%97%E6%AE%B5",
+    
+    "relUrl": "/features/logs/#可筛选字段"
+  },"69": {
+    "doc": "请求日志",
+    "title": "日志列",
+    "content": "| 列 | 含义 | . | Key | 普通用户 Key 的数据库 ID；捕获请求为空。 | . | 路径 | 客户端调用的网关 API 路径。 | . | 模型 | 请求体中的客户端模型。 | . | 渠道 | 最终尝试的渠道 ID；本地拒绝和捕获请求为空。 | . | 状态 | 返回给客户端或上游响应的状态码。 | . | 耗时 | 请求从进入网关到完成的总耗时。 | . | 输入/输出/合计 | 从成功响应中嗅探到的 Token；错误和捕获请求通常为 0。 | . | 摘要 | 本地错误、上游错误或重试原因；成功请求为空。 | . 自动重试的失败尝试也可能写入元数据，摘要包含 retrying；最终成功/失败会有后续记录。日志保留天数在设置页配置。 . ",
+    "url": "/PhonyC/features/logs/#%E6%97%A5%E5%BF%97%E5%88%97",
+    
+    "relUrl": "/features/logs/#日志列"
+  },"70": {
+    "doc": "请求日志",
+    "title": "捕获请求",
+    "content": "请求捕获成功时会出现 capture-only 记录：状态 200，无普通用户 Key、无渠道、Token 全部为 0、错误摘要为空。它证明请求已由 PhonyG 处理，但不代表访问过上游。 . ",
+    "url": "/PhonyC/features/logs/#%E6%8D%95%E8%8E%B7%E8%AF%B7%E6%B1%82",
+    
+    "relUrl": "/features/logs/#捕获请求"
+  },"71": {
+    "doc": "升级、备份与回滚",
+    "title": "升级、备份与回滚",
+    "content": " ",
+    "url": "/PhonyC/reference/operations/",
+    
+    "relUrl": "/reference/operations/"
+  },"72": {
+    "doc": "升级、备份与回滚",
+    "title": "升级前检查",
+    "content": ". | 记录当前镜像标签或二进制提交。 | 检查 /api/health。 | 备份数据目录。 | 保留旧容器或旧二进制，直到代理与管理台验证完成。 | . ",
+    "url": "/PhonyC/reference/operations/#%E5%8D%87%E7%BA%A7%E5%89%8D%E6%A3%80%E6%9F%A5",
+    
+    "relUrl": "/reference/operations/#升级前检查"
+  },"73": {
+    "doc": "升级、备份与回滚",
+    "title": "SQLite 安全备份",
+    "content": "最简单的方法是短暂停止 PhonyG 后复制整个数据目录： . docker stop phonyg docker run --rm -v phonyg-data:/data:ro -v \"$PWD\":/backup \\ alpine sh -c 'tar czf /backup/phonyg-$(date +%Y%m%d-%H%M%S).tgz -C /data .' docker start phonyg . 需要不停机时，使用 SQLite backup API 或 sqlite3 .backup，不要只复制 phonyg.db 而忽略 WAL。 . ",
+    "url": "/PhonyC/reference/operations/#sqlite-%E5%AE%89%E5%85%A8%E5%A4%87%E4%BB%BD",
+    
+    "relUrl": "/reference/operations/#sqlite-安全备份"
+  },"74": {
+    "doc": "升级、备份与回滚",
+    "title": "回滚容器",
+    "content": "docker stop phonyg docker rm phonyg docker rename phonyg-backup phonyg docker start phonyg curl --fail http://127.0.0.1:8080/api/health . 如果数据库迁移后旧版本不兼容，先恢复升级前的数据卷备份，再启动旧镜像。 . ",
+    "url": "/PhonyC/reference/operations/#%E5%9B%9E%E6%BB%9A%E5%AE%B9%E5%99%A8",
+    
+    "relUrl": "/reference/operations/#回滚容器"
+  },"75": {
+    "doc": "升级、备份与回滚",
+    "title": "本地二进制回滚",
+    "content": "将旧二进制和数据备份分别保存。systemd 部署可在替换二进制前复制： . cp bin/phonyg bin/phonyg.rollback cp -a data \"data.rollback.$(date +%s)\" . 回滚时停止服务，恢复二进制和数据，再启动并检查健康接口。 . ",
+    "url": "/PhonyC/reference/operations/#%E6%9C%AC%E5%9C%B0%E4%BA%8C%E8%BF%9B%E5%88%B6%E5%9B%9E%E6%BB%9A",
+    
+    "relUrl": "/reference/operations/#本地二进制回滚"
+  },"76": {
+    "doc": "客户端预设 ⭐",
+    "title": "客户端预设 ⭐",
+    "content": "客户端预设把真实客户端的静态指纹、动态会话字段和 Header 合并行为组织成可复用规则，并绑定到用户 Key。 . 四个内置 Codex / Claude Code 预设和自定义预设。 ",
+    "url": "/PhonyC/features/presets/",
+    
+    "relUrl": "/features/presets/"
+  },"77": {
+    "doc": "客户端预设 ⭐",
+    "title": "内置预设",
+    "content": "| 预设 | 用途 | . | Codex 基础 | 模拟 Codex 客户端的基础请求头。 | . | Codex 增强 | 在基础版上增加动态会话信息，更真实但可能会出现问题。 | . | Claude 基础 | 模拟 Claude Code 客户端的基础请求头。 | . | Claude 增强 | 在基础版上增加动态会话信息，更真实但可能会出现问题。 | . 内置预设不能原地修改。点击编辑可查看完整规则，保存时需要另取名称，创建独立自定义预设。 . ",
+    "url": "/PhonyC/features/presets/#%E5%86%85%E7%BD%AE%E9%A2%84%E8%AE%BE",
+    
+    "relUrl": "/features/presets/#内置预设"
+  },"78": {
+    "doc": "客户端预设 ⭐",
+    "title": "强制覆盖与缺失补全",
+    "content": "每个顶层 Header 和嵌套字段都有一个两态按钮开关： . | 右侧 / 默认：强制覆盖（fill_missing: false）——客户端有同名值也替换，没有则添加； | 左侧：缺失补全（fill_missing: true）——客户端已有值时保留，只有缺失时才添加。 | . 四个内置预设全部默认强制覆盖，以稳定模拟对应真实客户端，而不是被用户请求中的同名 Header 改变指纹。 . 父字段定义默认模式；子字段可继承或保存显式覆盖设置。 ",
+    "url": "/PhonyC/features/presets/#%E5%BC%BA%E5%88%B6%E8%A6%86%E7%9B%96%E4%B8%8E%E7%BC%BA%E5%A4%B1%E8%A1%A5%E5%85%A8",
+    
+    "relUrl": "/features/presets/#强制覆盖与缺失补全"
+  },"79": {
+    "doc": "客户端预设 ⭐",
+    "title": "父子字段",
+    "content": "对象型 Header（例如 JSON 格式的 X-Codex-Turn-Metadata）可以逐层配置： . | 子字段没有显式配置时显示“继承：强制覆盖”或“继承：缺失补全”； | 拨动子字段开关会在 children_fill_missing 中创建显式规则； | “恢复继承”删除显式规则； | 修改父字段不会删除子字段的自定义值； | 父行出现“含自定义子项”表示至少一个后代与继承模式不同。 | . 数组按数字索引处理缺失补全。客户端对象 Header 不是有效 JSON 时，请求会返回明确错误，不会静默拼出矛盾结果。 . ",
+    "url": "/PhonyC/features/presets/#%E7%88%B6%E5%AD%90%E5%AD%97%E6%AE%B5",
+    
+    "relUrl": "/features/presets/#父子字段"
+  },"80": {
+    "doc": "客户端预设 ⭐",
+    "title": "结构化规则",
+    "content": "{ \"schema_version\": 1, \"headers\": { \"User-Agent\": { \"value\": \"codex_exec/{{version}}\", \"fill_missing\": false }, \"X-Codex-Turn-Metadata\": { \"value\": { \"session_id\": \"{{generator:session}}\", \"turn_id\": \"{{generator:turn}}\" }, \"fill_missing\": false, \"children_fill_missing\": { \"session_id\": true } } }, \"remove_headers\": [], \"generators\": {} } . 可视化编辑与 JSON 编辑指向同一份规范文档。无效 JSON、未知模板、循环依赖、无效生成器或受保护 Header 会拒绝保存。 . ",
+    "url": "/PhonyC/features/presets/#%E7%BB%93%E6%9E%84%E5%8C%96%E8%A7%84%E5%88%99",
+    
+    "relUrl": "/features/presets/#结构化规则"
+  },"81": {
+    "doc": "客户端预设 ⭐",
+    "title": "模板与引用",
+    "content": ". | {{version}}：预设版本标签； | {{client_header:Header-Name}}：读取未经修改的客户端 Header； | {{resolved_header:Header-Name}}：读取前序解析后的 Header； | {{generator:name}}：读取命名生成器； | {{time:unix_ms}}、{{time:year}} 等：读取同一请求时间快照。 | . 依赖图会检测直接和间接循环。受保护 Header 不能被引用来间接写入规则结果。 . ",
+    "url": "/PhonyC/features/presets/#%E6%A8%A1%E6%9D%BF%E4%B8%8E%E5%BC%95%E7%94%A8",
+    
+    "relUrl": "/features/presets/#模板与引用"
+  },"82": {
+    "doc": "客户端预设 ⭐",
+    "title": "动态生成器",
+    "content": "生成器支持 UUID v4/v7 和固定长度随机字符，刷新模式包括： . | 每请求随机：同一请求中复用，下一请求重新生成； | 运行期固定：进程启动生成一次； | 定时刷新：达到滚动时间间隔后刷新； | 递增序列：数字初值按步长递增，支持循环、重新随机、扩位或报错。 | . 内置增强预设利用共享生成器保持多个 Header 中的 Session ID 一致，同时每个请求生成新的 Turn ID 和时间戳。 . ",
+    "url": "/PhonyC/features/presets/#%E5%8A%A8%E6%80%81%E7%94%9F%E6%88%90%E5%99%A8",
+    
+    "relUrl": "/features/presets/#动态生成器"
+  },"83": {
+    "doc": "客户端预设 ⭐",
+    "title": "受保护 Header",
+    "content": "预设不能写入、删除或引用：Authorization、X-Api-Key、Host、Content-Length、Accept-Encoding 以及 Connection、Transfer-Encoding 等 hop-by-hop Header。上游鉴权和传输字段始终由网关控制。 . ",
+    "url": "/PhonyC/features/presets/#%E5%8F%97%E4%BF%9D%E6%8A%A4-header",
+    
+    "relUrl": "/features/presets/#受保护-header"
+  },"84": {
+    "doc": "客户端预设 ⭐",
+    "title": "请求捕获生成预设",
+    "content": "捕获结果保存为 schema v1：每个业务 Header 成为顶层规则，默认 强制覆盖，不自动创建生成器。之后可以在可视化编辑器中把会话字段替换成动态生成器。 . ",
+    "url": "/PhonyC/features/presets/#%E8%AF%B7%E6%B1%82%E6%8D%95%E8%8E%B7%E7%94%9F%E6%88%90%E9%A2%84%E8%AE%BE",
+    
+    "relUrl": "/features/presets/#请求捕获生成预设"
+  },"85": {
+    "doc": "自动重试",
+    "title": "自动重试",
+    "content": "自动重试在候选渠道失败时排除当前渠道，并尝试另一个可用渠道，避免同一次请求反复命中相同失败节点。 . ",
+    "url": "/PhonyC/features/retry/",
+    
+    "relUrl": "/features/retry/"
+  },"86": {
+    "doc": "自动重试",
+    "title": "设置",
+    "content": ". | 开启自动重试：总开关； | 重试上限：额外尝试次数，允许 0..20，默认 2； | 触发状态码：默认 429,500,502,503,504。 | . ",
+    "url": "/PhonyC/features/retry/#%E8%AE%BE%E7%BD%AE",
+    
+    "relUrl": "/features/retry/#设置"
+  },"87": {
+    "doc": "自动重试",
+    "title": "行为",
+    "content": ". | 第一次选路遵循协议、模型、启用状态和优先级； | 网络错误按 502 处理； | 状态码在重试集合内且还有次数时，记录失败尝试并排除该渠道； | 选择另一候选渠道并重新使用原始请求体； | 每个候选可应用自己的模型改写和 Header 规则； | 候选耗尽后返回 model_not_found / 所有候选失败错误。 | . 如果正式流量状态同时命中自动测活临时禁用状态码，该渠道会立即临时禁用并从后续选路中消失。 . 流式响应一旦开始写给客户端就不会再切换渠道。重试发生在收到上游响应头、且响应体尚未转发之前。 . ",
+    "url": "/PhonyC/features/retry/#%E8%A1%8C%E4%B8%BA",
+    
+    "relUrl": "/features/retry/#行为"
+  },"88": {
+    "doc": "故障排查",
+    "title": "故障排查",
+    "content": " ",
+    "url": "/PhonyC/reference/troubleshooting/",
+    
+    "relUrl": "/reference/troubleshooting/"
+  },"89": {
+    "doc": "故障排查",
+    "title": "管理台打不开",
+    "content": ". | 检查 PHONYG_ADDR 是否监听 0.0.0.0 而不是容器内 loopback； | 检查宿主机端口映射和防火墙； | 先请求 GET /api/health 区分服务故障和前端缓存问题； | 浏览器硬刷新，确认嵌入的前端资源与二进制版本一致。 | . ",
+    "url": "/PhonyC/reference/troubleshooting/#%E7%AE%A1%E7%90%86%E5%8F%B0%E6%89%93%E4%B8%8D%E5%BC%80",
+    
+    "relUrl": "/reference/troubleshooting/#管理台打不开"
+  },"90": {
+    "doc": "故障排查",
+    "title": "登录反复跳回登录页",
+    "content": ". | JWT 已超过 PHONYG_JWT_TTL_HOURS； | PHONYG_JWT_SECRET 或数据目录里的 jwt_secret 在重启时变化； | 浏览器 localStorage 中保存了旧环境的 phonyg_token。 | . ",
+    "url": "/PhonyC/reference/troubleshooting/#%E7%99%BB%E5%BD%95%E5%8F%8D%E5%A4%8D%E8%B7%B3%E5%9B%9E%E7%99%BB%E5%BD%95%E9%A1%B5",
+    
+    "relUrl": "/reference/troubleshooting/#登录反复跳回登录页"
+  },"91": {
+    "doc": "故障排查",
+    "title": "/v1/models 没有模型",
+    "content": "模型必须被明确添加到渠道的模型表并启用。只从上游拉取列表但没有点击添加，不会进入聚合列表，也不会参与测活和选路。 . ",
+    "url": "/PhonyC/reference/troubleshooting/#v1models-%E6%B2%A1%E6%9C%89%E6%A8%A1%E5%9E%8B",
+    
+    "relUrl": "/reference/troubleshooting/#v1models-没有模型"
+  },"92": {
+    "doc": "故障排查",
+    "title": "返回 model_not_found",
+    "content": ". | 顶层 model 不等于任何启用映射的客户端模型； | 路径协议与渠道协议不匹配； | 匹配渠道被手动停用或测活临时禁用； | 自动重试已排除所有失败候选。 | . ",
+    "url": "/PhonyC/reference/troubleshooting/#%E8%BF%94%E5%9B%9E-model_not_found",
+    
+    "relUrl": "/reference/troubleshooting/#返回-model_not_found"
+  },"93": {
+    "doc": "故障排查",
+    "title": "渠道被临时禁用",
+    "content": "正式流量或自动测活命中配置状态码（默认 401,403,404,503）时会临时禁用。修复上游后可等待下一轮自动测活恢复、对该渠道手动测活，或在渠道列表手动启用以清除状态。 . ",
+    "url": "/PhonyC/reference/troubleshooting/#%E6%B8%A0%E9%81%93%E8%A2%AB%E4%B8%B4%E6%97%B6%E7%A6%81%E7%94%A8",
+    
+    "relUrl": "/reference/troubleshooting/#渠道被临时禁用"
+  },"94": {
+    "doc": "故障排查",
+    "title": "预设保存失败",
+    "content": "常见原因包括：受保护 Header、无效 JSON、未知模板、生成器引用不存在、依赖循环、无效子字段路径、递增模式用于非数字生成器。 . ",
+    "url": "/PhonyC/reference/troubleshooting/#%E9%A2%84%E8%AE%BE%E4%BF%9D%E5%AD%98%E5%A4%B1%E8%B4%A5",
+    
+    "relUrl": "/reference/troubleshooting/#预设保存失败"
+  },"95": {
+    "doc": "故障排查",
+    "title": "捕获 Key 返回 403",
+    "content": "捕获已完成或尚未重新布防。进入 请求捕获 页面点击重新布防，再发下一次捕获请求；重新布防会生成新的捕获 Key，旧 Key 会失效。不要把捕获 Key 当作普通代理 Key。 . ",
+    "url": "/PhonyC/reference/troubleshooting/#%E6%8D%95%E8%8E%B7-key-%E8%BF%94%E5%9B%9E-403",
+    
+    "relUrl": "/reference/troubleshooting/#捕获-key-返回-403"
+  },"96": {
+    "doc": "故障排查",
+    "title": "文档站资源 404",
+    "content": "GitHub 项目页必须使用 /PhonyC baseurl。文档图片和内部链接使用 Jekyll relative_url，本地预览也应带 --baseurl /PhonyC 并访问 /PhonyC/。 . ",
+    "url": "/PhonyC/reference/troubleshooting/#%E6%96%87%E6%A1%A3%E7%AB%99%E8%B5%84%E6%BA%90-404",
+    
+    "relUrl": "/reference/troubleshooting/#文档站资源-404"
+  }
+}
